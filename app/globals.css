@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* ===== Atlas design system (Tailwind v4 theme tokens) ===== */
+@theme {
+  /* Brand palette */
+  --color-navy: #1a2a41;
+  --color-navy-700: #22344f;
+  --color-navy-600: #2c4159;
+  --color-teal: #2a9d8e;
+  --color-teal-600: #238375;
+  --color-gold: #d3a476;
+  --color-coral: #d97e69;
+  --color-cream: #fafaf8;
+  --color-bodygray: #e8edf2;
+
+  /* Typography (CSS vars come from next/font in layout.js) */
+  --font-serif: var(--font-playfair), ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Motion */
+  --animate-float: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+/* ===== Base ===== */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-navy);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+}
+
+/* Section label / eyebrow */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Scroll-reveal: starts hidden, .is-visible animates in */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .animate-float { animation: none !important; }
+}
