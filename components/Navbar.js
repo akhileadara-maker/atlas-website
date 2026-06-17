@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUser, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Logo from "./Logo";
-import Button from "./Button";
 
 const links = [
   { label: "Features", href: "/features" },
@@ -12,7 +12,12 @@ const links = [
   { label: "Demo", href: "/demo" },
 ];
 
+const navLink = "text-sm font-medium text-navy/70 transition-colors hover:text-teal";
+const tealBtn =
+  "inline-flex items-center justify-center rounded-full bg-teal px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-teal-600";
+
 export default function Navbar() {
+  const { isSignedIn } = useUser();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -23,13 +28,32 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Lock body scroll while the mobile menu is open.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  // The Log in / Start Free Trial pair, or the signed-in account controls.
+  const AuthActions = ({ block = false }) =>
+    isSignedIn ? (
+      <>
+        <Link href="/dashboard" className={block ? `${tealBtn} w-full` : navLink}>
+          Dashboard
+        </Link>
+        <UserButton afterSignOutUrl="/" />
+      </>
+    ) : (
+      <>
+        <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+          <button className={block ? `${navLink} py-2` : navLink}>Log in</button>
+        </SignInButton>
+        <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+          <button className={block ? `${tealBtn} w-full` : tealBtn}>Start Free Trial</button>
+        </SignUpButton>
+      </>
+    );
 
   return (
     <header
@@ -42,25 +66,18 @@ export default function Navbar() {
       <nav className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-6 lg:px-8">
         <Logo />
 
-        {/* Center links (desktop) */}
         <ul className="hidden items-center gap-9 md:flex">
           {links.map((link) => (
             <li key={link.href}>
-              <Link
-                href={link.href}
-                className="text-sm font-medium text-navy/70 transition-colors hover:text-teal"
-              >
+              <Link href={link.href} className={navLink}>
                 {link.label}
               </Link>
             </li>
           ))}
         </ul>
 
-        {/* CTA (desktop) */}
-        <div className="hidden md:block">
-          <Button href="/demo#trial" variant="teal">
-            Start Free Trial
-          </Button>
+        <div className="hidden h-10 items-center gap-5 md:flex">
+          <AuthActions />
         </div>
 
         {/* Mobile toggle */}
@@ -70,27 +87,22 @@ export default function Navbar() {
           aria-expanded={open}
           className="relative z-50 flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
         >
-          <span
-            className={`h-0.5 w-6 rounded bg-navy transition-transform duration-300 ${
-              open ? "translate-y-2 rotate-45" : ""
-            }`}
-          />
-          <span
-            className={`h-0.5 w-6 rounded bg-navy transition-opacity duration-300 ${
-              open ? "opacity-0" : ""
-            }`}
-          />
-          <span
-            className={`h-0.5 w-6 rounded bg-navy transition-transform duration-300 ${
-              open ? "-translate-y-2 -rotate-45" : ""
-            }`}
-          />
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className={`h-0.5 w-6 rounded bg-navy transition-all duration-300 ${
+                open && i === 0 ? "translate-y-2 rotate-45" : ""
+              } ${open && i === 1 ? "opacity-0" : ""} ${
+                open && i === 2 ? "-translate-y-2 -rotate-45" : ""
+              }`}
+            />
+          ))}
         </button>
       </nav>
 
       {/* Mobile menu */}
       <div
-        className={`fixed inset-0 top-20 z-40 origin-top bg-cream px-6 transition-all duration-300 md:hidden ${
+        className={`fixed inset-0 top-20 z-40 bg-cream px-6 transition-all duration-300 md:hidden ${
           open ? "visible opacity-100" : "invisible opacity-0"
         }`}
       >
@@ -107,10 +119,11 @@ export default function Navbar() {
             </li>
           ))}
         </ul>
-        <div className="pt-6">
-          <Button href="/demo#trial" variant="teal" size="lg" className="w-full" onClick={() => setOpen(false)}>
-            Start Free Trial
-          </Button>
+        <div
+          className="flex flex-col gap-3 pt-6"
+          onClickCapture={() => setOpen(false)}
+        >
+          <AuthActions block />
         </div>
       </div>
     </header>
