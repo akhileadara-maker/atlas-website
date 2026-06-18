@@ -1,36 +1,49 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
-import {
-  ChatIcon,
-  WrenchIcon,
-  DocumentIcon,
-  ClockIcon,
-  CheckIcon,
-} from "@/components/icons";
+import AddProperty from "@/components/AddProperty";
+import { supabase } from "@/lib/supabase";
+import { DocumentIcon, WrenchIcon, ClockIcon } from "@/components/icons";
 
-export const metadata = {
-  title: "Dashboard — Atlas",
-};
+export const metadata = { title: "Dashboard — Atlas" };
 
-const stats = [
-  { icon: DocumentIcon, label: "Units managed", value: "128" },
-  { icon: WrenchIcon, label: "Open maintenance", value: "3" },
-  { icon: ClockIcon, label: "Renewals due (90d)", value: "7" },
-  { icon: ChatIcon, label: "Tenant chats today", value: "42" },
-];
+// Always render fresh data (this page reads per-user rows from Supabase).
+export const dynamic = "force-dynamic";
 
-const activity = [
-  { time: "2m ago", text: "Atlas dispatched a plumber to Apt 4B (urgent)." },
-  { time: "1h ago", text: "Lease for Apt 7B flagged — renewal due in 88 days." },
-  { time: "3h ago", text: "Answered 6 tenant questions in 3 languages." },
-  { time: "Today", text: "Rent escalation +3% applied to Strip Mall · Unit 3." },
-];
+function fmtDate(value) {
+  try {
+    return new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
 
 export default async function DashboardPage() {
+  const { userId } = await auth();
   const user = await currentUser();
   const firstName = user?.firstName || "there";
   const email = user?.emailAddresses?.[0]?.emailAddress;
+
+  // Fetch this landlord's properties (scoped by their Clerk user id).
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  const properties = data || [];
+  const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
+  const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
+
+  const stats = [
+    { icon: DocumentIcon, label: "Properties", value: properties.length },
+    { icon: WrenchIcon, label: "Total units", value: totalUnits },
+    { icon: ClockIcon, label: "Avg units / property", value: avgUnits },
+  ];
 
   return (
     <section className="min-h-screen bg-cream pt-28 pb-20">
@@ -50,15 +63,12 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stats (derived from your real data) */}
+        <div className="mt-10 grid gap-5 sm:grid-cols-3">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div
-                key={stat.label}
-                className="rounded-3xl border border-navy/10 bg-white p-6"
-              >
+              <div key={stat.label} className="rounded-3xl border border-navy/10 bg-white p-6">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal/12 text-teal">
                   <Icon className="h-6 w-6" />
                 </span>
@@ -69,44 +79,58 @@ export default async function DashboardPage() {
           })}
         </div>
 
-        {/* Two-column body */}
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-          {/* Activity feed */}
-          <div className="rounded-3xl border border-navy/10 bg-white p-7">
-            <h2 className="text-xl font-bold text-navy">Recent activity</h2>
-            <ul className="mt-5 space-y-4">
-              {activity.map((item, i) => (
-                <li key={i} className="flex gap-4">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal/15 text-teal">
-                    <CheckIcon className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-navy/80">{item.text}</p>
-                    <p className="text-xs text-navy/40">{item.time}</p>
+        {/* Properties */}
+        <div className="mt-10 rounded-3xl border border-navy/10 bg-white p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-navy">Your properties</h2>
+              <p className="text-sm text-navy/55">Everything Atlas manages for you, in one place.</p>
+            </div>
+            <AddProperty />
+          </div>
+
+          {/* DB error (e.g., the migration hasn't been run yet) */}
+          {error && (
+            <div className="mt-6 rounded-2xl border border-coral/30 bg-coral/5 p-5 text-sm text-navy/70">
+              <p className="font-semibold text-coral">Couldn&apos;t load properties.</p>
+              <p className="mt-1">
+                Make sure the <code className="rounded bg-navy/5 px-1">properties</code> table exists —
+                run <code className="rounded bg-navy/5 px-1">supabase/migrations/0001_create_properties.sql</code>{" "}
+                in your Supabase SQL editor. ({error.message})
+              </p>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!error && properties.length === 0 && (
+            <div className="mt-6 rounded-2xl border border-dashed border-navy/15 bg-cream p-10 text-center">
+              <p className="font-medium text-navy">No properties yet.</p>
+              <p className="mt-1 text-sm text-navy/55">
+                Click <span className="font-semibold text-teal">Add Property</span> to add your first one.
+              </p>
+            </div>
+          )}
+
+          {/* List */}
+          {properties.length > 0 && (
+            <ul className="mt-6 divide-y divide-navy/10">
+              {properties.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-4 py-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-navy">{p.name}</p>
+                    {p.address && <p className="truncate text-sm text-navy/55">{p.address}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-6 text-right">
+                    <div>
+                      <p className="font-serif text-lg font-bold text-teal">{p.units}</p>
+                      <p className="text-xs text-navy/45">units</p>
+                    </div>
+                    <p className="hidden text-xs text-navy/40 sm:block">Added {fmtDate(p.created_at)}</p>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* Get started card */}
-          <div className="rounded-3xl bg-navy p-7 text-cream">
-            <span className="eyebrow text-gold">Getting started</span>
-            <h2 className="mt-3 font-serif text-2xl font-bold">Your trial is active</h2>
-            <p className="mt-2 text-bodygray/70">
-              This is a placeholder dashboard. Connect your properties and leases to bring it to life.
-            </p>
-            <ul className="mt-6 space-y-3 text-sm">
-              {["Import your leases", "Invite your team", "Connect your vendors"].map((step) => (
-                <li key={step} className="flex items-center gap-3">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal/30 text-teal">
-                    <CheckIcon className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-bodygray/85">{step}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          )}
         </div>
       </Container>
     </section>
