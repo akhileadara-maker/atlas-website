@@ -2,7 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
 import AddProperty from "@/components/AddProperty";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { DocumentIcon, WrenchIcon, ClockIcon } from "@/components/icons";
 
 export const metadata = { title: "Dashboard — Atlas" };
@@ -28,14 +28,25 @@ export default async function DashboardPage() {
   const firstName = user?.firstName || "there";
   const email = user?.emailAddresses?.[0]?.emailAddress;
 
-  // Fetch this landlord's properties (scoped by their Clerk user id).
-  const { data, error } = await supabase
-    .from("properties")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  // Lazily get the client — null if env vars aren't configured (e.g. on a
+  // fresh deploy before the vars are added). We render a friendly notice
+  // instead of crashing the page.
+  const supabase = getSupabase();
+  const configured = Boolean(supabase);
 
-  const properties = data || [];
+  let properties = [];
+  let dbError = null;
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) dbError = error.message;
+    else properties = data || [];
+  }
+
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
   const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
 
@@ -86,23 +97,35 @@ export default async function DashboardPage() {
               <h2 className="text-xl font-bold text-navy">Your properties</h2>
               <p className="text-sm text-navy/55">Everything Atlas manages for you, in one place.</p>
             </div>
-            <AddProperty />
+            {configured && <AddProperty />}
           </div>
 
+          {/* Supabase not configured (missing env vars) */}
+          {!configured && (
+            <div className="mt-6 rounded-2xl border border-gold/40 bg-gold/5 p-5 text-sm text-navy/70">
+              <p className="font-semibold text-navy">Database not configured.</p>
+              <p className="mt-1">
+                Add <code className="rounded bg-navy/5 px-1">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+                <code className="rounded bg-navy/5 px-1">SUPABASE_SERVICE_ROLE_KEY</code> to your
+                environment variables (locally in <code className="rounded bg-navy/5 px-1">.env.local</code>,
+                and in Vercel → Settings → Environment Variables), then redeploy.
+              </p>
+            </div>
+          )}
+
           {/* DB error (e.g., the migration hasn't been run yet) */}
-          {error && (
+          {configured && dbError && (
             <div className="mt-6 rounded-2xl border border-coral/30 bg-coral/5 p-5 text-sm text-navy/70">
               <p className="font-semibold text-coral">Couldn&apos;t load properties.</p>
               <p className="mt-1">
-                Make sure the <code className="rounded bg-navy/5 px-1">properties</code> table exists —
-                run <code className="rounded bg-navy/5 px-1">supabase/migrations/0001_create_properties.sql</code>{" "}
-                in your Supabase SQL editor. ({error.message})
+                Make sure the <code className="rounded bg-navy/5 px-1">properties</code> table exists.
+                ({dbError})
               </p>
             </div>
           )}
 
           {/* Empty state */}
-          {!error && properties.length === 0 && (
+          {configured && !dbError && properties.length === 0 && (
             <div className="mt-6 rounded-2xl border border-dashed border-navy/15 bg-cream p-10 text-center">
               <p className="font-medium text-navy">No properties yet.</p>
               <p className="mt-1 text-sm text-navy/55">
@@ -112,7 +135,7 @@ export default async function DashboardPage() {
           )}
 
           {/* List */}
-          {properties.length > 0 && (
+          {configured && properties.length > 0 && (
             <ul className="mt-6 divide-y divide-navy/10">
               {properties.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-4 py-4">
@@ -125,7 +148,21 @@ export default async function DashboardPage() {
                       <p className="font-serif text-lg font-bold text-teal">{p.units}</p>
                       <p className="text-xs text-navy/45">units</p>
                     </div>
-                    <p className="hidden text-xs text-navy/40 sm:block">Added {fmtDate(p.created_at)}</p>
+                    <p className="hidden text-xs text-navy/40 lg:block">Added {fmtDate(p.created_at)}</p>
+                    {p.retell_agent_id ? (
+                      <a
+                        href={`https://dashboard.retellai.com/agents/${p.retell_agent_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-600 transition-colors hover:bg-teal/20"
+                      >
+                        Test Agent
+                      </a>
+                    ) : (
+                      <span className="rounded-full border border-navy/10 px-4 py-2 text-xs font-medium text-navy/40">
+                        Agent pending
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}
