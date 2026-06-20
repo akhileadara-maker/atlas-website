@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
@@ -140,7 +141,12 @@ export default async function DashboardPage() {
               {properties.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-4 py-4">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-navy">{p.name}</p>
+                    <Link
+                      href={`/dashboard/${p.id}`}
+                      className="truncate font-semibold text-navy transition-colors hover:text-teal"
+                    >
+                      {p.name}
+                    </Link>
                     {p.address && <p className="truncate text-sm text-navy/55">{p.address}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-6 text-right">
