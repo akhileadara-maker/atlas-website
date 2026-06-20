@@ -4,6 +4,8 @@ import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
 import AddProperty from "@/components/AddProperty";
 import { getSupabase } from "@/lib/supabase";
+import { getSubscription, isActive } from "@/lib/subscription";
+import { PLANS } from "@/lib/plans";
 import { DocumentIcon, WrenchIcon, ClockIcon } from "@/components/icons";
 
 export const metadata = { title: "Dashboard — Atlas" };
@@ -51,6 +53,9 @@ export default async function DashboardPage() {
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
   const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
 
+  const sub = await getSubscription(userId);
+  const activePlan = isActive(sub) && sub?.plan ? PLANS[sub.plan] : null;
+
   const stats = [
     { icon: DocumentIcon, label: "Properties", value: properties.length },
     { icon: WrenchIcon, label: "Total units", value: totalUnits },
@@ -68,6 +73,20 @@ export default async function DashboardPage() {
               Welcome back, {firstName}.
             </h1>
             {email && <p className="mt-1 text-navy/55">Signed in as {email}</p>}
+            <div className="mt-3 flex items-center gap-3">
+              {activePlan ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-teal/12 px-3 py-1 text-sm font-semibold text-teal-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-teal" /> {activePlan.name} plan · active
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-navy/5 px-3 py-1 text-sm font-medium text-navy/55">
+                  No active plan
+                </span>
+              )}
+              <Link href="/dashboard/billing" className="text-sm font-medium text-teal transition-colors hover:text-teal-600">
+                Billing →
+              </Link>
+            </div>
           </div>
           <div className="flex items-center gap-3 rounded-full border border-navy/10 bg-white px-4 py-2">
             <UserButton afterSignOutUrl="/" />
