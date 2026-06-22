@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import { getSubscription, isActive } from "@/lib/subscription";
 import { PLANS } from "@/lib/plans";
 import { DocumentIcon, WrenchIcon, ClockIcon } from "@/components/icons";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 export const metadata = { title: "Dashboard — Atlas" };
 
@@ -23,6 +24,15 @@ function fmtDate(value) {
   } catch {
     return "";
   }
+}
+
+// True if a property's knowledge-base form has any real content entered.
+function hasKbContent(kb) {
+  if (!kb || typeof kb !== "object") return false;
+  return Object.entries(kb).some(([key, value]) => {
+    if (key === "pet_allowed") return value === "yes";
+    return typeof value === "string" ? value.trim() !== "" : value != null;
+  });
 }
 
 export default async function DashboardPage() {
@@ -55,6 +65,24 @@ export default async function DashboardPage() {
 
   const sub = await getSubscription(userId);
   const activePlan = isActive(sub) && sub?.plan ? PLANS[sub.plan] : null;
+
+  // Onboarding checklist steps (the component hides itself once all are done).
+  const firstPropertyId = properties[0]?.id;
+  const onboardingSteps = [
+    { label: "Create your account", done: true, href: null },
+    { label: "Add your first property", done: properties.length > 0, href: "#properties" },
+    {
+      label: "Set up your knowledge base",
+      done: properties.some((p) => hasKbContent(p.kb_data)),
+      href: firstPropertyId ? `/dashboard/${firstPropertyId}` : "#properties",
+    },
+    {
+      label: "Test your AI agent",
+      done: properties.some((p) => p.retell_agent_id),
+      href: firstPropertyId ? `/dashboard/${firstPropertyId}` : "#properties",
+    },
+    { label: "Choose a plan", done: isActive(sub), href: "/dashboard/billing" },
+  ];
 
   const stats = [
     { icon: DocumentIcon, label: "Properties", value: properties.length },
@@ -94,6 +122,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        {/* Onboarding checklist — hides itself once all 5 steps are complete */}
+        <div className="mt-8">
+          <OnboardingChecklist steps={onboardingSteps} />
+        </div>
+
         {/* Stats (derived from your real data) */}
         <div className="mt-10 grid gap-5 sm:grid-cols-3">
           {stats.map((stat) => {
@@ -111,7 +144,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Properties */}
-        <div className="mt-10 rounded-3xl border border-navy/10 bg-white p-7">
+        <div id="properties" className="mt-10 scroll-mt-28 rounded-3xl border border-navy/10 bg-white p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-xl font-bold text-navy">Your properties</h2>
