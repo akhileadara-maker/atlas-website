@@ -10,6 +10,7 @@ import {
   startChat,
   sendChatMessage,
 } from "@/lib/retell";
+import { computeLeaseStatus } from "@/lib/leases";
 
 const str = (v) => (v == null ? "" : v.toString().trim());
 
@@ -183,4 +184,86 @@ export async function sendChat(chatId, content) {
   } catch (e) {
     return { error: e.message };
   }
+}
+
+// ---- Lease Intelligence actions ----
+
+export async function addLease(prevState, formData) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!supabase) return { error: "The database isn't configured." };
+
+  const propertyId = str(formData.get("property_id"));
+  const tenant_name = str(formData.get("tenant_name"));
+  if (!tenant_name) return { error: "Tenant name is required." };
+
+  // Confirm the property belongs to this user before attaching a lease.
+  const { data: property } = await supabase
+    .from("properties")
+    .select("id")
+    .eq("id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!property) return { error: "Property not found." };
+
+  const lease_end = str(formData.get("lease_end")) || null;
+  const rent = parseFloat(formData.get("monthly_rent"));
+
+  const { error } = await supabase.from("leases").insert({
+    property_id: propertyId,
+    user_id: userId,
+    tenant_name,
+    tenant_email: str(formData.get("tenant_email")) || null,
+    unit_number: str(formData.get("unit_number")) || null,
+    monthly_rent: Number.isFinite(rent) ? rent : null,
+    lease_start: str(formData.get("lease_start")) || null,
+    lease_end,
+    status: computeLeaseStatus(lease_end),
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/${propertyId}`);
+  return { success: true };
+}
+
+export async function deleteLease(leaseId) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!supabase) return { error: "The database isn't configured." };
+
+  const { data: lease } = await supabase
+    .from("leases")
+    .select("property_id")
+    .eq("id", leaseId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { error } = await supabase.from("leases").delete().eq("id", leaseId).eq("user_id", userId);
+  if (error) return { error: error.message };
+
+  if (lease?.property_id) revalidatePath(`/dashboard/${lease.property_id}`);
+  return { success: true };
+}
+
+// Recompute each lease's stored status from its end date. Called automatically
+// when the property page is viewed; only writes rows whose status changed.
+export async function refreshLeaseStatuses(propertyId) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId || !supabase) return;
+
+  const { data: leases } = await supabase
+    .from("leases")
+    .select("id, lease_end, status")
+    .eq("property_id", propertyId)
+    .eq("user_id", userId);
+
+  let changed = false;
+  for (const lease of leases || []) {
+    const next = computeLeaseStatus(lease.lease_end);
+    if (next !== lease.status) {
+      await supabase.from("leases").update({ status: next }).eq("id", lease.id).eq("user_id", userId);
+      changed = true;
+    }
+  }
+  if (changed) revalidatePath(`/dashboard/${propertyId}`);
 }

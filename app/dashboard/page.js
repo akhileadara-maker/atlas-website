@@ -6,8 +6,9 @@ import AddProperty from "@/components/AddProperty";
 import { getSupabase } from "@/lib/supabase";
 import { getSubscription, isActive } from "@/lib/subscription";
 import { PLANS } from "@/lib/plans";
-import { DocumentIcon, WrenchIcon, ClockIcon } from "@/components/icons";
+import { DocumentIcon, WrenchIcon, ClockIcon, FileWarningIcon } from "@/components/icons";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import { computeLeaseStatus } from "@/lib/leases";
 
 export const metadata = { title: "Dashboard — Atlas" };
 
@@ -60,6 +61,15 @@ export default async function DashboardPage() {
     else properties = data || [];
   }
 
+  // Leases across all properties — for the "expiring soon" stat (table may not exist yet).
+  let expiringSoon = 0;
+  if (supabase) {
+    const { data: leaseRows } = await supabase.from("leases").select("lease_end").eq("user_id", userId);
+    expiringSoon = (leaseRows || []).filter(
+      (l) => computeLeaseStatus(l.lease_end) === "expiring_soon"
+    ).length;
+  }
+
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
   const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
 
@@ -88,6 +98,7 @@ export default async function DashboardPage() {
     { icon: DocumentIcon, label: "Properties", value: properties.length },
     { icon: WrenchIcon, label: "Total units", value: totalUnits },
     { icon: ClockIcon, label: "Avg units / property", value: avgUnits },
+    { icon: FileWarningIcon, label: "Leases expiring (90d)", value: expiringSoon },
   ];
 
   return (
@@ -128,7 +139,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats (derived from your real data) */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-3">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (

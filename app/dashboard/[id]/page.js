@@ -6,6 +6,7 @@ import EditPropertyForm from "@/components/EditPropertyForm";
 import DeletePropertyButton from "@/components/DeletePropertyButton";
 import KnowledgeBaseEditor from "@/components/KnowledgeBaseEditor";
 import ChatWidget from "@/components/ChatWidget";
+import LeaseIntelligence from "@/components/LeaseIntelligence";
 import { getSupabase } from "@/lib/supabase";
 
 export const metadata = { title: "Property — Atlas" };
@@ -27,6 +28,14 @@ export default async function PropertyDetailPage({ params }) {
   if (error || !property) notFound();
 
   const hasAgent = Boolean(property.retell_agent_id);
+
+  // Leases for this property (the table won't exist until migration 0006 is run).
+  const { data: leases, error: leasesError } = await supabase
+    .from("leases")
+    .select("*")
+    .eq("property_id", id)
+    .eq("user_id", userId)
+    .order("lease_end", { ascending: true });
 
   return (
     <section className="min-h-screen bg-cream pt-28 pb-20">
@@ -77,6 +86,15 @@ export default async function PropertyDetailPage({ params }) {
               <ChatWidget propertyId={property.id} hasAgent={hasAgent} />
             </div>
           </div>
+        </div>
+
+        {/* Lease Intelligence */}
+        <div className="mt-8">
+          <LeaseIntelligence
+            propertyId={property.id}
+            leases={leases || []}
+            tableMissing={Boolean(leasesError)}
+          />
         </div>
       </Container>
     </section>
