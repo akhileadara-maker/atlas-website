@@ -1,26 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
 import Button from "./Button";
 import { CheckIcon } from "./icons";
+import { joinWaitlist } from "@/app/demo/actions";
 
-// Front-end-only trial signup. Validates the email and shows a success state.
-// (Wire this up to a real API route or form service when you're ready.)
+const field =
+  "w-full flex-1 rounded-full border border-navy/20 bg-white px-5 py-3.5 text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-teal";
+
+// Trial / waitlist sign-up. Saves name + email to the Supabase `waitlist` table.
 export default function TrialForm() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | error | success
-  const isValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const [state, formAction, pending] = useActionState(joinWaitlist, {});
 
-  function onSubmit(e) {
-    e.preventDefault();
-    if (!isValid(email.trim())) {
-      setStatus("error");
-      return;
-    }
-    setStatus("success");
-  }
-
-  if (status === "success") {
+  if (state?.success) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-teal/30 bg-teal/10 px-6 py-8 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal text-white">
@@ -28,35 +20,31 @@ export default function TrialForm() {
         </span>
         <p className="font-serif text-xl font-bold text-navy">You&apos;re on the list!</p>
         <p className="text-navy/60">
-          Check your inbox — we&apos;ll be in touch to set up your free 30-day trial.
+          Thanks for signing up — we&apos;ll email you to set up your free 30-day trial.
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="w-full">
+    <form action={formAction} className="w-full">
       <div className="flex flex-col gap-3 sm:flex-row">
+        <input name="name" type="text" placeholder="Your name" aria-label="Your name" className={field} />
         <input
+          name="email"
           type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (status === "error") setStatus("idle");
-          }}
+          required
           placeholder="you@yourcompany.com"
           aria-label="Work email"
-          className={`flex-1 rounded-full border bg-white px-5 py-3.5 text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-teal ${
-            status === "error" ? "border-coral" : "border-navy/20"
-          }`}
+          className={field}
         />
-        <Button type="submit" variant="teal" size="lg" className="shrink-0">
-          Start Free Trial
+      </div>
+      <div className="mt-3">
+        <Button type="submit" variant="teal" size="lg" disabled={pending} className="w-full disabled:opacity-60 sm:w-auto">
+          {pending ? "Joining…" : "Start Free Trial"}
         </Button>
       </div>
-      {status === "error" && (
-        <p className="mt-2 text-sm text-coral">Please enter a valid email address.</p>
-      )}
+      {state?.error && <p className="mt-2 text-sm text-coral">{state.error}</p>}
       <p className="mt-3 text-sm text-navy/45">
         No credit card required · Setup takes an afternoon · Cancel anytime.
       </p>

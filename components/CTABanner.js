@@ -31,7 +31,7 @@ export default function CTABanner() {
                 </Button>
               </div>
               <p className="mt-6 text-sm text-bodygray/50">
-                hello@atlas.com · atlas.com · (555) 555-0100
+                hello@atlas.com · atlas.com
               </p>
             </div>
           </div>

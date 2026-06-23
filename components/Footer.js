@@ -53,11 +53,6 @@ export default function Footer() {
                   atlas.com
                 </a>
               </p>
-              <p>
-                <a href="tel:+15555550100" className="transition-colors hover:text-gold">
-                  (555) 555-0100
-                </a>
-              </p>
             </div>
           </div>
 
