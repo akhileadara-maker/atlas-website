@@ -7,6 +7,7 @@ import DeletePropertyButton from "@/components/DeletePropertyButton";
 import KnowledgeBaseEditor from "@/components/KnowledgeBaseEditor";
 import ChatWidget from "@/components/ChatWidget";
 import LeaseIntelligence from "@/components/LeaseIntelligence";
+import Dispatch from "@/components/Dispatch";
 import { getSupabase } from "@/lib/supabase";
 
 export const metadata = { title: "Property — Atlas" };
@@ -36,6 +37,14 @@ export default async function PropertyDetailPage({ params }) {
     .eq("property_id", id)
     .eq("user_id", userId)
     .order("lease_end", { ascending: true });
+
+  // Maintenance requests (table won't exist until migration 0007 is run).
+  const { data: requests, error: requestsError } = await supabase
+    .from("maintenance_requests")
+    .select("*")
+    .eq("property_id", id)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
   return (
     <section className="min-h-screen bg-cream pt-28 pb-20">
@@ -94,6 +103,15 @@ export default async function PropertyDetailPage({ params }) {
             propertyId={property.id}
             leases={leases || []}
             tableMissing={Boolean(leasesError)}
+          />
+        </div>
+
+        {/* Dispatch */}
+        <div className="mt-8">
+          <Dispatch
+            propertyId={property.id}
+            requests={requests || []}
+            tableMissing={Boolean(requestsError)}
           />
         </div>
       </Container>

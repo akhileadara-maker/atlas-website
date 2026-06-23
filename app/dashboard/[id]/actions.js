@@ -11,6 +11,7 @@ import {
   sendChatMessage,
 } from "@/lib/retell";
 import { computeLeaseStatus } from "@/lib/leases";
+import { URGENCY_OPTIONS, STATUS_OPTIONS } from "@/lib/maintenance";
 
 const str = (v) => (v == null ? "" : v.toString().trim());
 
@@ -266,4 +267,87 @@ export async function refreshLeaseStatuses(propertyId) {
     }
   }
   if (changed) revalidatePath(`/dashboard/${propertyId}`);
+}
+
+// ---- Dispatch (maintenance request) actions ----
+
+export async function addMaintenanceRequest(prevState, formData) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!supabase) return { error: "The database isn't configured." };
+
+  const propertyId = str(formData.get("property_id"));
+  const title = str(formData.get("title"));
+  if (!title) return { error: "A title is required." };
+
+  const { data: property } = await supabase
+    .from("properties")
+    .select("id")
+    .eq("id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!property) return { error: "Property not found." };
+
+  const urgencyInput = str(formData.get("urgency"));
+  const urgency = URGENCY_OPTIONS.includes(urgencyInput) ? urgencyInput : "normal";
+
+  const { error } = await supabase.from("maintenance_requests").insert({
+    property_id: propertyId,
+    user_id: userId,
+    title,
+    description: str(formData.get("description")) || null,
+    urgency,
+    status: "open",
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/${propertyId}`);
+  return { success: true };
+}
+
+export async function deleteMaintenanceRequest(requestId) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!supabase) return { error: "The database isn't configured." };
+
+  const { data: request } = await supabase
+    .from("maintenance_requests")
+    .select("property_id")
+    .eq("id", requestId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("maintenance_requests")
+    .delete()
+    .eq("id", requestId)
+    .eq("user_id", userId);
+  if (error) return { error: error.message };
+
+  if (request?.property_id) revalidatePath(`/dashboard/${request.property_id}`);
+  return { success: true };
+}
+
+export async function updateMaintenanceStatus(requestId, status) {
+  const { userId, supabase } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!supabase) return { error: "The database isn't configured." };
+  if (!STATUS_OPTIONS.includes(status)) return { error: "Invalid status." };
+
+  const { data: request } = await supabase
+    .from("maintenance_requests")
+    .select("property_id")
+    .eq("id", requestId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("maintenance_requests")
+    .update({ status })
+    .eq("id", requestId)
+    .eq("user_id", userId);
+  if (error) return { error: error.message };
+
+  if (request?.property_id) revalidatePath(`/dashboard/${request.property_id}`);
+  return { success: true };
 }

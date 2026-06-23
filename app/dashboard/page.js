@@ -70,6 +70,16 @@ export default async function DashboardPage() {
     ).length;
   }
 
+  // Open maintenance requests (anything not resolved) — for the dashboard stat.
+  let openRequests = 0;
+  if (supabase) {
+    const { data: reqRows } = await supabase
+      .from("maintenance_requests")
+      .select("status")
+      .eq("user_id", userId);
+    openRequests = (reqRows || []).filter((r) => r.status !== "resolved").length;
+  }
+
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
   const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
 
@@ -99,6 +109,7 @@ export default async function DashboardPage() {
     { icon: WrenchIcon, label: "Total units", value: totalUnits },
     { icon: ClockIcon, label: "Avg units / property", value: avgUnits },
     { icon: FileWarningIcon, label: "Leases expiring (90d)", value: expiringSoon },
+    { icon: WrenchIcon, label: "Open requests", value: openRequests },
   ];
 
   return (
@@ -139,7 +150,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats (derived from your real data) */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-5">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
