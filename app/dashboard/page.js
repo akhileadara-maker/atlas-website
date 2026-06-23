@@ -6,7 +6,7 @@ import AddProperty from "@/components/AddProperty";
 import { getSupabase } from "@/lib/supabase";
 import { getSubscription, isActive } from "@/lib/subscription";
 import { PLANS } from "@/lib/plans";
-import { DocumentIcon, WrenchIcon, ClockIcon, FileWarningIcon } from "@/components/icons";
+import { DocumentIcon, WrenchIcon, FileWarningIcon, KeyIcon } from "@/components/icons";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { computeLeaseStatus } from "@/lib/leases";
 
@@ -61,27 +61,30 @@ export default async function DashboardPage() {
     else properties = data || [];
   }
 
-  // Leases across all properties — for the "expiring soon" stat (table may not exist yet).
-  let expiringSoon = 0;
+  // Leases + maintenance requests across all properties (tables may not exist yet).
+  let leases = [];
+  let requests = [];
   if (supabase) {
-    const { data: leaseRows } = await supabase.from("leases").select("lease_end").eq("user_id", userId);
-    expiringSoon = (leaseRows || []).filter(
-      (l) => computeLeaseStatus(l.lease_end) === "expiring_soon"
-    ).length;
-  }
-
-  // Open maintenance requests (anything not resolved) — for the dashboard stat.
-  let openRequests = 0;
-  if (supabase) {
-    const { data: reqRows } = await supabase
-      .from("maintenance_requests")
-      .select("status")
-      .eq("user_id", userId);
-    openRequests = (reqRows || []).filter((r) => r.status !== "resolved").length;
+    const [leaseRes, reqRes] = await Promise.all([
+      supabase.from("leases").select("property_id, lease_end").eq("user_id", userId),
+      supabase.from("maintenance_requests").select("property_id, status").eq("user_id", userId),
+    ]);
+    leases = leaseRes.data || [];
+    requests = reqRes.data || [];
   }
 
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
-  const avgUnits = properties.length ? Math.round(totalUnits / properties.length) : 0;
+  const activeLeases = leases.filter((l) => computeLeaseStatus(l.lease_end) === "active").length;
+  const expiringSoon = leases.filter((l) => computeLeaseStatus(l.lease_end) === "expiring_soon").length;
+  const openRequests = requests.filter((r) => r.status !== "resolved").length;
+
+  // Per-property counts for the property list rows.
+  const leasesByProperty = {};
+  for (const l of leases) leasesByProperty[l.property_id] = (leasesByProperty[l.property_id] || 0) + 1;
+  const openReqByProperty = {};
+  for (const r of requests) {
+    if (r.status !== "resolved") openReqByProperty[r.property_id] = (openReqByProperty[r.property_id] || 0) + 1;
+  }
 
   const sub = await getSubscription(userId);
   const activePlan = isActive(sub) && sub?.plan ? PLANS[sub.plan] : null;
@@ -105,11 +108,10 @@ export default async function DashboardPage() {
   ];
 
   const stats = [
-    { icon: DocumentIcon, label: "Properties", value: properties.length },
-    { icon: WrenchIcon, label: "Total units", value: totalUnits },
-    { icon: ClockIcon, label: "Avg units / property", value: avgUnits },
-    { icon: FileWarningIcon, label: "Leases expiring (90d)", value: expiringSoon },
+    { icon: KeyIcon, label: "Total units", value: totalUnits },
+    { icon: DocumentIcon, label: "Active leases", value: activeLeases },
     { icon: WrenchIcon, label: "Open requests", value: openRequests },
+    { icon: FileWarningIcon, label: "Expiring leases (90d)", value: expiringSoon },
   ];
 
   return (
@@ -150,7 +152,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats (derived from your real data) */}
-        <div className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-5">
+        <div className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -222,6 +224,12 @@ export default async function DashboardPage() {
                       {p.name}
                     </Link>
                     {p.address && <p className="truncate text-sm text-navy/55">{p.address}</p>}
+                    <p className="mt-0.5 text-xs text-navy/45">
+                      {leasesByProperty[p.id] || 0} lease{(leasesByProperty[p.id] || 0) === 1 ? "" : "s"}
+                      {" · "}
+                      {openReqByProperty[p.id] || 0} open request
+                      {(openReqByProperty[p.id] || 0) === 1 ? "" : "s"}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-6 text-right">
                     <div>
