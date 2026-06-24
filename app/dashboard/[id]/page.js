@@ -8,6 +8,7 @@ import KnowledgeBaseEditor from "@/components/KnowledgeBaseEditor";
 import ChatWidget from "@/components/ChatWidget";
 import LeaseIntelligence from "@/components/LeaseIntelligence";
 import Dispatch from "@/components/Dispatch";
+import Conversations from "@/components/Conversations";
 import { getSupabase } from "@/lib/supabase";
 
 export const metadata = { title: "Property — Atlas" };
@@ -41,6 +42,14 @@ export default async function PropertyDetailPage({ params }) {
   // Maintenance requests (table won't exist until migration 0007 is run).
   const { data: requests, error: requestsError } = await supabase
     .from("maintenance_requests")
+    .select("*")
+    .eq("property_id", id)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  // Tenant AI conversation log (table won't exist until migration 0009 is run).
+  const { data: conversations, error: conversationsError } = await supabase
+    .from("conversations")
     .select("*")
     .eq("property_id", id)
     .eq("user_id", userId)
@@ -95,6 +104,14 @@ export default async function PropertyDetailPage({ params }) {
               <ChatWidget propertyId={property.id} hasAgent={hasAgent} />
             </div>
           </div>
+        </div>
+
+        {/* Conversations (Tenant AI log) */}
+        <div className="mt-8">
+          <Conversations
+            conversations={conversations || []}
+            tableMissing={Boolean(conversationsError)}
+          />
         </div>
 
         {/* Lease Intelligence */}

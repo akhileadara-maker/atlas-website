@@ -49,7 +49,7 @@ export default function ChatWidget({ propertyId, hasAgent }) {
       setLoading(false);
       return;
     }
-    const res = await sendChat(cid, text);
+    const res = await sendChat(propertyId, cid, text);
     setLoading(false);
     if (res.error) {
       setError(res.error);

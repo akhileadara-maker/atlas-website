@@ -174,14 +174,38 @@ export async function startChatSession(propertyId) {
   }
 }
 
-export async function sendChat(chatId, content) {
-  const { userId } = await requireUserAndDb();
+export async function sendChat(propertyId, chatId, content) {
+  const { userId, supabase } = await requireUserAndDb();
   if (!userId) return { error: "You must be signed in." };
   if (!chatId || !content?.trim()) return { error: "Message is empty." };
 
+  const message = content.trim();
   try {
-    const reply = await sendChatMessage(chatId, content.trim());
-    return { reply: reply || "(The agent didn't return a message.)" };
+    const reply = await sendChatMessage(chatId, message);
+    const finalReply = reply || "(The agent didn't return a message.)";
+
+    // Best-effort: log the exchange to the property's conversation history.
+    // A logging failure (e.g. table not created yet) never breaks the chat.
+    if (supabase && propertyId) {
+      const { data: property } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("id", propertyId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (property) {
+        const { error } = await supabase.from("conversations").insert({
+          property_id: propertyId,
+          user_id: userId,
+          tenant_message: message,
+          agent_response: finalReply,
+        });
+        if (error) console.error("conversation log failed:", error.message);
+        else revalidatePath(`/dashboard/${propertyId}`);
+      }
+    }
+
+    return { reply: finalReply };
   } catch (e) {
     return { error: e.message };
   }
