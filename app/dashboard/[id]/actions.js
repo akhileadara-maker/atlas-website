@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import {
   updateKnowledgeBaseContent,
+  updateAgentSystemPrompt,
   deletePropertyAgent,
   startChat,
   sendChatMessage,
@@ -14,6 +15,26 @@ import { computeLeaseStatus } from "@/lib/leases";
 import { URGENCY_OPTIONS, STATUS_OPTIONS } from "@/lib/maintenance";
 
 const str = (v) => (v == null ? "" : v.toString().trim());
+
+// Build the agent's system prompt — re-injected into Retell on every KB save.
+function composeSystemPrompt(propertyName, language) {
+  const lines = [
+    `You are Atlas, the AI assistant for ${propertyName}.`,
+    "You help tenants with questions about their property, lease, policies, and maintenance.",
+    "",
+    "Rules:",
+    "- Answer ONLY using information from the knowledge base. Never guess or make up facts.",
+    `- If you don't know the answer, or it isn't in the knowledge base, reply exactly: "I'll flag this for your property manager." and escalate the question to a human.`,
+    "- Be professional, but warm and friendly.",
+    "- Always reply in the same language the tenant writes in.",
+  ];
+  if (language) {
+    lines.push(
+      `- This property's preferred language is ${language}; default to it when the tenant's language is unclear.`
+    );
+  }
+  return lines.join("\n");
+}
 
 // Build the plain-text document that gets pushed to the Retell knowledge base.
 function composeKbText(property, kb) {
@@ -116,6 +137,7 @@ export async function saveKnowledgeBase(prevState, formData) {
     office_hours: str(formData.get("office_hours")),
     parking_policy: str(formData.get("parking_policy")),
     custom_notes: str(formData.get("custom_notes")),
+    preferred_language: str(formData.get("preferred_language")),
   };
 
   const { data: property, error } = await supabase
@@ -134,16 +156,25 @@ export async function saveKnowledgeBase(prevState, formData) {
     .eq("user_id", userId);
   if (upErr) return { error: upErr.message };
 
-  // Push the composed text into the property's Retell knowledge base.
-  if (property.retell_kb_id) {
+  // Push the latest info to the property's Retell agent: refresh the knowledge
+  // base content AND re-inject the system prompt so the two stay in sync.
+  if (property.retell_kb_id || property.retell_agent_id) {
     try {
-      await updateKnowledgeBaseContent(
-        property.retell_kb_id,
-        `${property.name} — property info`.slice(0, 60),
-        composeKbText(property, kb)
-      );
+      if (property.retell_kb_id) {
+        await updateKnowledgeBaseContent(
+          property.retell_kb_id,
+          `${property.name} — property info`.slice(0, 60),
+          composeKbText(property, kb)
+        );
+      }
+      if (property.retell_agent_id) {
+        await updateAgentSystemPrompt(
+          property.retell_agent_id,
+          composeSystemPrompt(property.name, kb.preferred_language)
+        );
+      }
     } catch (e) {
-      return { error: "Saved your info, but updating the AI knowledge base failed: " + e.message };
+      return { error: "Saved your info, but updating the AI agent failed: " + e.message };
     }
   }
 

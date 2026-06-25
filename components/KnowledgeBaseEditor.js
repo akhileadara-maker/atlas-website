@@ -15,6 +15,15 @@ export default function KnowledgeBaseEditor({ propertyId, initial = {}, hasAgent
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="id" value={propertyId} />
 
+      {/* Agent language */}
+      <div>
+        <label className={label}>Preferred language</label>
+        <input name="preferred_language" defaultValue={kb.preferred_language} placeholder="English" className={input} />
+        <p className="mt-1 text-xs text-navy/45">
+          Your agent always replies in the tenant&apos;s language, and defaults to this one.
+        </p>
+      </div>
+
       {/* Rent & fees */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
