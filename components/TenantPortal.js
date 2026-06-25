@@ -176,7 +176,7 @@ export default function TenantPortal() {
               placeholder="you@email.com"
               className={field}
             />
-            <button type="submit" disabled={looking} className={`${tealBtn} shrink-0`}>
+            <button type="submit" disabled={looking} className={`${tealBtn} w-full sm:w-auto sm:shrink-0`}>
               {looking ? "Looking up…" : "Look up my lease"}
             </button>
           </div>

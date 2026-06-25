@@ -152,11 +152,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats (derived from your real data) */}
-        <div className="mt-10 grid grid-cols-2 gap-5 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
-              <div key={stat.label} className="rounded-3xl border border-navy/10 bg-white p-6">
+              <div key={stat.label} className="rounded-3xl border border-navy/10 bg-white p-5 sm:p-6">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal/12 text-teal">
                   <Icon className="h-6 w-6" />
                 </span>
@@ -215,11 +215,11 @@ export default async function DashboardPage() {
           {configured && properties.length > 0 && (
             <ul className="mt-6 divide-y divide-navy/10">
               {properties.map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-4 py-4">
+                <li key={p.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div className="min-w-0">
                     <Link
                       href={`/dashboard/${p.id}`}
-                      className="truncate font-semibold text-navy transition-colors hover:text-teal"
+                      className="block truncate font-semibold text-navy transition-colors hover:text-teal"
                     >
                       {p.name}
                     </Link>
@@ -231,8 +231,8 @@ export default async function DashboardPage() {
                       {(openReqByProperty[p.id] || 0) === 1 ? "" : "s"}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-6 text-right">
-                    <div>
+                  <div className="flex items-center gap-4 sm:shrink-0 sm:gap-6">
+                    <div className="sm:text-right">
                       <p className="font-serif text-lg font-bold text-teal">{p.units}</p>
                       <p className="text-xs text-navy/45">units</p>
                     </div>
