@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import {
   updateKnowledgeBaseContent,
   updateAgentSystemPrompt,
+  updateAgentLanguage,
   deletePropertyAgent,
   startChat,
   sendChatMessage,
@@ -172,6 +173,7 @@ export async function saveKnowledgeBase(prevState, formData) {
           property.retell_agent_id,
           composeSystemPrompt(property.name, kb.preferred_language)
         );
+        await updateAgentLanguage(property.retell_agent_id, kb.preferred_language);
       }
     } catch (e) {
       return { error: "Saved your info, but updating the AI agent failed: " + e.message };
