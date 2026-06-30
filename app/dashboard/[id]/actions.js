@@ -244,6 +244,22 @@ export async function sendChat(propertyId, chatId, content) {
   }
 }
 
+// Fires the agent's Welcome Node greeting by sending an empty trigger message,
+// so the chat shows a greeting before the tenant types. Not logged — it's the
+// agent's opening line, not a tenant exchange.
+export async function triggerWelcome(chatId) {
+  const { userId } = await requireUserAndDb();
+  if (!userId) return { error: "You must be signed in." };
+  if (!chatId) return { error: "No chat session." };
+
+  try {
+    const reply = await sendChatMessage(chatId, "");
+    return { reply: reply || "" };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 // ---- Lease Intelligence actions ----
 
 export async function addLease(prevState, formData) {

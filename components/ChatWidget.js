@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { startChatSession, sendChat } from "@/app/dashboard/[id]/actions";
+import { startChatSession, sendChat, triggerWelcome } from "@/app/dashboard/[id]/actions";
 
 export default function ChatWidget({ propertyId, hasAgent }) {
   const [messages, setMessages] = useState([]); // { role: "user" | "agent", text }
@@ -10,10 +10,32 @@ export default function ChatWidget({ propertyId, hasAgent }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const endRef = useRef(null);
+  const welcomedRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // On load, open the chat session and fire an empty trigger message so the
+  // agent's Welcome Node greeting appears before the tenant types anything.
+  useEffect(() => {
+    if (!hasAgent || welcomedRef.current) return;
+    welcomedRef.current = true;
+    (async () => {
+      setLoading(true);
+      const res = await startChatSession(propertyId);
+      if (res.error) {
+        setLoading(false);
+        return; // No greeting, but the chat still works once the tenant types.
+      }
+      setChatId(res.chatId);
+      const welcome = await triggerWelcome(res.chatId);
+      setLoading(false);
+      if (welcome?.reply?.trim()) {
+        setMessages((m) => [...m, { role: "agent", text: welcome.reply }]);
+      }
+    })();
+  }, [hasAgent, propertyId]);
 
   if (!hasAgent) {
     return (
@@ -69,7 +91,7 @@ export default function ChatWidget({ propertyId, hasAgent }) {
 
       {/* Messages */}
       <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !loading && (
           <p className="py-8 text-center text-sm text-navy/45">
             Ask your agent something a tenant might — e.g. &ldquo;What&apos;s the late fee?&rdquo; or
             &ldquo;Are pets allowed?&rdquo;
