@@ -1,9 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { saveNotificationEmail } from "@/lib/profiles";
+import { sendMaintenanceRequestEmail } from "@/lib/notifications";
 import {
   updateKnowledgeBaseContent,
   updateAgentSystemPrompt,
@@ -351,11 +353,12 @@ export async function addMaintenanceRequest(prevState, formData) {
 
   const propertyId = str(formData.get("property_id"));
   const title = str(formData.get("title"));
+  const description = str(formData.get("description"));
   if (!title) return { error: "A title is required." };
 
   const { data: property } = await supabase
     .from("properties")
-    .select("id")
+    .select("id, name")
     .eq("id", propertyId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -368,11 +371,28 @@ export async function addMaintenanceRequest(prevState, formData) {
     property_id: propertyId,
     user_id: userId,
     title,
-    description: str(formData.get("description")) || null,
+    description: description || null,
     urgency,
     status: "open",
   });
   if (error) return { error: error.message };
+
+  // Best-effort: email the landlord (and keep their notification email fresh).
+  try {
+    const user = await currentUser();
+    const to = user?.emailAddresses?.[0]?.emailAddress;
+    if (to) {
+      await saveNotificationEmail(userId, to);
+      await sendMaintenanceRequestEmail({
+        to,
+        propertyId,
+        propertyName: property.name,
+        request: { title, description, urgency },
+      });
+    }
+  } catch (e) {
+    console.error("maintenance email failed:", e.message);
+  }
 
   revalidatePath(`/dashboard/${propertyId}`);
   return { success: true };

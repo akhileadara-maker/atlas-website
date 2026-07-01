@@ -3,6 +3,8 @@
 import { getSupabase } from "@/lib/supabase";
 import { computeLeaseStatus } from "@/lib/leases";
 import { URGENCY_OPTIONS } from "@/lib/maintenance";
+import { getNotificationEmail } from "@/lib/profiles";
+import { sendMaintenanceRequestEmail } from "@/lib/notifications";
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
@@ -55,10 +57,11 @@ export async function submitTenantRequest(prevState, formData) {
   const supabase = getSupabase();
   if (!supabase) return { error: "Something went wrong — please try again later." };
 
-  // Confirm this email has a lease at this property, and grab the landlord (user_id).
+  // Confirm this email has a lease at this property, and grab the landlord
+  // (user_id) plus the property name for the notification email.
   const { data: leaseRows } = await supabase
     .from("leases")
-    .select("user_id, property_id")
+    .select("user_id, property_id, properties(name)")
     .ilike("tenant_email", email)
     .eq("property_id", propertyId)
     .limit(1);
@@ -77,6 +80,22 @@ export async function submitTenantRequest(prevState, formData) {
   if (error) {
     console.error("tenant request failed:", error.message);
     return { error: "Couldn't submit your request — please try again." };
+  }
+
+  // Best-effort: email the landlord at their saved notification address.
+  try {
+    const to = await getNotificationEmail(lease.user_id);
+    if (to) {
+      await sendMaintenanceRequestEmail({
+        to,
+        propertyId: lease.property_id,
+        propertyName: lease.properties?.name,
+        request: { title, description, urgency },
+        tenantEmail: email,
+      });
+    }
+  } catch (e) {
+    console.error("tenant request email failed:", e.message);
   }
 
   return { success: true };

@@ -10,6 +10,7 @@ import LeaseIntelligence from "@/components/LeaseIntelligence";
 import Dispatch from "@/components/Dispatch";
 import Conversations from "@/components/Conversations";
 import { getSupabase } from "@/lib/supabase";
+import { notifyExpiringLeases } from "@/lib/notifications";
 
 export const metadata = { title: "Property — Atlas" };
 export const dynamic = "force-dynamic";
@@ -38,6 +39,10 @@ export default async function PropertyDetailPage({ params }) {
     .eq("property_id", id)
     .eq("user_id", userId)
     .order("lease_end", { ascending: true });
+
+  // Best-effort: email the landlord about any leases newly within 90 days of
+  // expiry (deduped via each lease's expiry_notified_at). Never blocks render.
+  await notifyExpiringLeases({ userId, property, leases: leases || [] });
 
   // Maintenance requests (table won't exist until migration 0007 is run).
   const { data: requests, error: requestsError } = await supabase

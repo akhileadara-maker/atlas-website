@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import Container from "@/components/Container";
 import AddProperty from "@/components/AddProperty";
 import { getSupabase } from "@/lib/supabase";
+import { saveNotificationEmail } from "@/lib/profiles";
 import { getSubscription, isActive } from "@/lib/subscription";
 import { PLANS } from "@/lib/plans";
 import { DocumentIcon, WrenchIcon, FileWarningIcon, KeyIcon } from "@/components/icons";
@@ -41,6 +42,10 @@ export default async function DashboardPage() {
   const user = await currentUser();
   const firstName = user?.firstName || "there";
   const email = user?.emailAddresses?.[0]?.emailAddress;
+
+  // Save the landlord's Clerk email so tenant-submitted requests and lease-expiry
+  // alerts have somewhere to send. Best-effort — no-ops if the DB isn't set up.
+  if (userId && email) await saveNotificationEmail(userId, email);
 
   // Lazily get the client — null if env vars aren't configured (e.g. on a
   // fresh deploy before the vars are added). We render a friendly notice
