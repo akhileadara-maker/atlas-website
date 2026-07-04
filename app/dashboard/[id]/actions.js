@@ -6,66 +6,16 @@ import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { saveNotificationEmail } from "@/lib/profiles";
 import { sendMaintenanceRequestEmail } from "@/lib/notifications";
-import {
-  updateKnowledgeBaseContent,
-  updateAgentSystemPrompt,
-  updateAgentLanguage,
-  deletePropertyAgent,
-  startChat,
-  sendChatMessage,
-} from "@/lib/retell";
+import { startChat, sendChatMessage } from "@/lib/retell";
 import { computeLeaseStatus, formatRent, STATUS_META } from "@/lib/leases";
 import { URGENCY_OPTIONS, STATUS_OPTIONS } from "@/lib/maintenance";
+import {
+  updatePropertyDetails,
+  deletePropertyById,
+  saveKnowledgeBase as saveKnowledgeBaseService,
+} from "@/lib/services/properties";
 
 const str = (v) => (v == null ? "" : v.toString().trim());
-
-// Build the agent's system prompt — re-injected into Retell on every KB save.
-function composeSystemPrompt(propertyName, language) {
-  const lines = [
-    `You are Atlas, the AI assistant for ${propertyName}.`,
-    "You help tenants with questions about their property, lease, policies, and maintenance.",
-    "",
-    "Rules:",
-    "- Answer general property questions ONLY using information from the knowledge base. Never guess or make up facts.",
-    "- If the tenant's own lease details are provided to you in this conversation, use them to answer their personal questions (their lease end date, monthly rent, unit, and lease status).",
-    `- If you don't know the answer, or it isn't in the knowledge base or the tenant's lease details, reply exactly: "I'll flag this for your property manager." and escalate the question to a human.`,
-    "- Be professional, but warm and friendly.",
-    "- Always reply in the same language the tenant writes in.",
-  ];
-  if (language) {
-    lines.push(
-      `- This property's preferred language is ${language}; default to it when the tenant's language is unclear.`
-    );
-  }
-  return lines.join("\n");
-}
-
-// Build the plain-text document that gets pushed to the Retell knowledge base.
-function composeKbText(property, kb) {
-  const lines = [`Property: ${property.name}`];
-  if (property.address) lines.push(`Address: ${property.address}`);
-  lines.push(`Number of units: ${property.units}`, "");
-
-  if (kb.monthly_rent) lines.push(`Monthly rent: ${kb.monthly_rent}`);
-  if (kb.late_fee || kb.grace_period) {
-    lines.push(
-      `Late fee: ${kb.late_fee || "N/A"}` +
-        (kb.grace_period ? ` (after a ${kb.grace_period}-day grace period)` : "")
-    );
-  }
-  const petsAllowed = kb.pet_allowed === "yes";
-  let pets = `Pet policy: ${petsAllowed ? "Pets allowed" : "No pets allowed"}`;
-  if (petsAllowed) {
-    if (kb.pet_deposit) pets += `; pet deposit ${kb.pet_deposit}`;
-    if (kb.pet_monthly_fee) pets += `; monthly pet fee ${kb.pet_monthly_fee}`;
-  }
-  lines.push(pets);
-  if (kb.maintenance_contact) lines.push(`Maintenance emergency contact: ${kb.maintenance_contact}`);
-  if (kb.office_hours) lines.push(`Office hours: ${kb.office_hours}`);
-  if (kb.parking_policy) lines.push(`Parking policy: ${kb.parking_policy}`);
-  if (kb.custom_notes) lines.push(`Additional rules and notes: ${kb.custom_notes}`);
-  return lines.join("\n");
-}
 
 // Builds the per-tenant lease context that primes a chat. Sent as the first
 // (hidden) message so the agent can answer this tenant's personal questions;
@@ -103,23 +53,15 @@ async function requireUserAndDb() {
 }
 
 export async function updateProperty(prevState, formData) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
-
+  const { userId } = await auth();
   const id = str(formData.get("id"));
-  const name = str(formData.get("name"));
-  const address = str(formData.get("address"));
-  const unitsRaw = parseInt(formData.get("units"), 10);
-  const units = Number.isFinite(unitsRaw) && unitsRaw >= 0 ? unitsRaw : 0;
-  if (!name) return { error: "Property name is required." };
 
-  const { error } = await supabase
-    .from("properties")
-    .update({ name, address: address || null, units })
-    .eq("id", id)
-    .eq("user_id", userId);
-  if (error) return { error: error.message };
+  const result = await updatePropertyDetails(userId, id, {
+    name: formData.get("name"),
+    address: formData.get("address"),
+    units: formData.get("units"),
+  });
+  if (result.error) return { error: result.error };
 
   revalidatePath(`/dashboard/${id}`);
   revalidatePath("/dashboard");
@@ -127,90 +69,21 @@ export async function updateProperty(prevState, formData) {
 }
 
 export async function deleteProperty(id) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
+  const { userId } = await auth();
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select("retell_agent_id, retell_kb_id")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .single();
-
-  // Best-effort: tear down the Retell agent + KB so nothing is orphaned.
-  if (property) {
-    await deletePropertyAgent({
-      agentId: property.retell_agent_id,
-      kbId: property.retell_kb_id,
-    });
-  }
-
-  const { error } = await supabase.from("properties").delete().eq("id", id).eq("user_id", userId);
-  if (error) return { error: error.message };
+  const result = await deletePropertyById(userId, id);
+  if (result.error) return { error: result.error };
 
   revalidatePath("/dashboard");
   redirect("/dashboard");
 }
 
 export async function saveKnowledgeBase(prevState, formData) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
-
+  const { userId } = await auth();
   const id = str(formData.get("id"));
-  const kb = {
-    monthly_rent: str(formData.get("monthly_rent")),
-    late_fee: str(formData.get("late_fee")),
-    grace_period: str(formData.get("grace_period")),
-    pet_allowed: str(formData.get("pet_allowed")) === "yes" ? "yes" : "no",
-    pet_deposit: str(formData.get("pet_deposit")),
-    pet_monthly_fee: str(formData.get("pet_monthly_fee")),
-    maintenance_contact: str(formData.get("maintenance_contact")),
-    office_hours: str(formData.get("office_hours")),
-    parking_policy: str(formData.get("parking_policy")),
-    custom_notes: str(formData.get("custom_notes")),
-    preferred_language: str(formData.get("preferred_language")),
-  };
 
-  const { data: property, error } = await supabase
-    .from("properties")
-    .select("*")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .single();
-  if (error || !property) return { error: "Property not found." };
-
-  // Persist the structured fields so the form pre-fills next time.
-  const { error: upErr } = await supabase
-    .from("properties")
-    .update({ kb_data: kb })
-    .eq("id", id)
-    .eq("user_id", userId);
-  if (upErr) return { error: upErr.message };
-
-  // Push the latest info to the property's Retell agent: refresh the knowledge
-  // base content AND re-inject the system prompt so the two stay in sync.
-  if (property.retell_kb_id || property.retell_agent_id) {
-    try {
-      if (property.retell_kb_id) {
-        await updateKnowledgeBaseContent(
-          property.retell_kb_id,
-          `${property.name} — property info`.slice(0, 60),
-          composeKbText(property, kb)
-        );
-      }
-      if (property.retell_agent_id) {
-        await updateAgentSystemPrompt(
-          property.retell_agent_id,
-          composeSystemPrompt(property.name, kb.preferred_language)
-        );
-        await updateAgentLanguage(property.retell_agent_id, kb.preferred_language);
-      }
-    } catch (e) {
-      return { error: "Saved your info, but updating the AI agent failed: " + e.message };
-    }
-  }
+  const result = await saveKnowledgeBaseService(userId, id, Object.fromEntries(formData));
+  if (result.error) return { error: result.error };
 
   revalidatePath(`/dashboard/${id}`);
   return { success: true };
