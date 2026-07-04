@@ -4,11 +4,8 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
-import { saveNotificationEmail } from "@/lib/profiles";
-import { sendMaintenanceRequestEmail } from "@/lib/notifications";
 import { startChat, sendChatMessage } from "@/lib/retell";
 import { computeLeaseStatus, formatRent, STATUS_META } from "@/lib/leases";
-import { URGENCY_OPTIONS, STATUS_OPTIONS } from "@/lib/maintenance";
 import {
   updatePropertyDetails,
   deletePropertyById,
@@ -19,6 +16,7 @@ import {
   removeLease,
   refreshLeaseStatuses as refreshLeaseStatusesService,
 } from "@/lib/services/leases";
+import { createRequest, updateRequestStatus, removeRequest } from "@/lib/services/maintenance";
 
 const str = (v) => (v == null ? "" : v.toString().trim());
 
@@ -243,100 +241,51 @@ export async function refreshLeaseStatuses(propertyId) {
 // ---- Dispatch (maintenance request) actions ----
 
 export async function addMaintenanceRequest(prevState, formData) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
-
+  const { userId } = await auth();
   const propertyId = str(formData.get("property_id"));
-  const title = str(formData.get("title"));
-  const description = str(formData.get("description"));
-  if (!title) return { error: "A title is required." };
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select("id, name")
-    .eq("id", propertyId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!property) return { error: "Property not found." };
-
-  const urgencyInput = str(formData.get("urgency"));
-  const urgency = URGENCY_OPTIONS.includes(urgencyInput) ? urgencyInput : "normal";
-
-  const { error } = await supabase.from("maintenance_requests").insert({
-    property_id: propertyId,
-    user_id: userId,
-    title,
-    description: description || null,
-    urgency,
-    status: "open",
-  });
-  if (error) return { error: error.message };
-
-  // Best-effort: email the landlord (and keep their notification email fresh).
+  // Resolve the landlord's email up front (best-effort) so the service can
+  // send the notification; a Clerk hiccup must never block the request.
+  let landlordEmail = null;
   try {
     const user = await currentUser();
-    const to = user?.emailAddresses?.[0]?.emailAddress;
-    if (to) {
-      await saveNotificationEmail(userId, to);
-      await sendMaintenanceRequestEmail({
-        to,
-        propertyId,
-        propertyName: property.name,
-        request: { title, description, urgency },
-      });
-    }
+    landlordEmail = user?.emailAddresses?.[0]?.emailAddress || null;
   } catch (e) {
     console.error("maintenance email failed:", e.message);
   }
+
+  const result = await createRequest(
+    userId,
+    propertyId,
+    {
+      title: formData.get("title"),
+      description: formData.get("description"),
+      urgency: formData.get("urgency"),
+    },
+    { landlordEmail }
+  );
+  if (result.error) return { error: result.error };
 
   revalidatePath(`/dashboard/${propertyId}`);
   return { success: true };
 }
 
 export async function deleteMaintenanceRequest(requestId) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
+  const { userId } = await auth();
 
-  const { data: request } = await supabase
-    .from("maintenance_requests")
-    .select("property_id")
-    .eq("id", requestId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const result = await removeRequest(userId, requestId);
+  if (result.error) return { error: result.error };
 
-  const { error } = await supabase
-    .from("maintenance_requests")
-    .delete()
-    .eq("id", requestId)
-    .eq("user_id", userId);
-  if (error) return { error: error.message };
-
-  if (request?.property_id) revalidatePath(`/dashboard/${request.property_id}`);
+  if (result.propertyId) revalidatePath(`/dashboard/${result.propertyId}`);
   return { success: true };
 }
 
 export async function updateMaintenanceStatus(requestId, status) {
-  const { userId, supabase } = await requireUserAndDb();
-  if (!userId) return { error: "You must be signed in." };
-  if (!supabase) return { error: "The database isn't configured." };
-  if (!STATUS_OPTIONS.includes(status)) return { error: "Invalid status." };
+  const { userId } = await auth();
 
-  const { data: request } = await supabase
-    .from("maintenance_requests")
-    .select("property_id")
-    .eq("id", requestId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const result = await updateRequestStatus(userId, requestId, status);
+  if (result.error) return { error: result.error };
 
-  const { error } = await supabase
-    .from("maintenance_requests")
-    .update({ status })
-    .eq("id", requestId)
-    .eq("user_id", userId);
-  if (error) return { error: error.message };
-
-  if (request?.property_id) revalidatePath(`/dashboard/${request.property_id}`);
+  if (result.propertyId) revalidatePath(`/dashboard/${result.propertyId}`);
   return { success: true };
 }
