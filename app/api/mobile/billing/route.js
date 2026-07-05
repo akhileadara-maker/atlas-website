@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireUserId } from "@/lib/mobile-api";
+import { requireUserId, withMobileRoute } from "@/lib/mobile-api";
 import { getSubscription, getUnitCount, isActive } from "@/lib/subscription";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withMobileRoute(async () => {
   const { userId, response } = await requireUserId();
   if (response) return response;
 
@@ -16,4 +16,4 @@ export async function GET() {
     units,
     billedUnits: Math.max(1, units),
   });
-}
+});

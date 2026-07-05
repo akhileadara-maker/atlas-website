@@ -1,17 +1,17 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { requireUserId, serviceResponse } from "@/lib/mobile-api";
+import { requireUserId, serviceResponse, withMobileRoute } from "@/lib/mobile-api";
 import { listRequests, createRequest } from "@/lib/services/maintenance";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request, { params }) {
+export const GET = withMobileRoute(async (_request, { params }) => {
   const { userId, response } = await requireUserId();
   if (response) return response;
   const { id } = await params;
   return serviceResponse(await listRequests(userId, id));
-}
+});
 
-export async function POST(request, { params }) {
+export const POST = withMobileRoute(async (request, { params }) => {
   const { userId, response } = await requireUserId();
   if (response) return response;
   const { id } = await params;
@@ -34,4 +34,4 @@ export async function POST(request, { params }) {
       { landlordEmail }
     )
   );
-}
+});

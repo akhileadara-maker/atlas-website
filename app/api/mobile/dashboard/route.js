@@ -1,11 +1,11 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { requireUserId, serviceResponse } from "@/lib/mobile-api";
+import { requireUserId, serviceResponse, withMobileRoute } from "@/lib/mobile-api";
 import { getDashboardData } from "@/lib/services/properties";
 import { saveNotificationEmail } from "@/lib/profiles";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export const GET = withMobileRoute(async () => {
   const { userId, response } = await requireUserId();
   if (response) return response;
 
@@ -20,4 +20,4 @@ export async function GET() {
   }
 
   return serviceResponse(await getDashboardData(userId));
-}
+});

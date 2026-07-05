@@ -1,7 +1,7 @@
-import { requireUserId, serviceResponse } from "@/lib/mobile-api";
+import { requireUserId, serviceResponse, withMobileRoute } from "@/lib/mobile-api";
 import { sendChat } from "@/lib/services/chat";
 
-export async function POST(request, { params }) {
+export const POST = withMobileRoute(async (request, { params }) => {
   const { userId, response } = await requireUserId();
   if (response) return response;
   const { id } = await params;
@@ -10,4 +10,4 @@ export async function POST(request, { params }) {
   const result = await sendChat(userId, id, body.chatId, body.content);
   if (result.error) return serviceResponse(result);
   return serviceResponse({ reply: result.reply }); // `logged` is internal — don't expose
-}
+});

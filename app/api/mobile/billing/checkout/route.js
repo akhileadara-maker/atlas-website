@@ -1,8 +1,8 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { requireUserId, serviceResponse } from "@/lib/mobile-api";
+import { requireUserId, serviceResponse, withMobileRoute } from "@/lib/mobile-api";
 import { createCheckoutSession } from "@/lib/services/billing";
 
-export async function POST(request) {
+export const POST = withMobileRoute(async (request) => {
   const { userId, response } = await requireUserId();
   if (response) return response;
   const body = await request.json().catch(() => ({}));
@@ -22,4 +22,4 @@ export async function POST(request) {
   }
 
   return serviceResponse(await createCheckoutSession(userId, body.planKey, { baseUrl, email }));
-}
+});
