@@ -74,9 +74,81 @@ export default function KnowledgeBaseEditor({ propertyId, initial = {}, hasAgent
         </div>
       </div>
 
+      {/* Emergency instructions */}
+      <div>
+        <label className={label}>Emergency instructions</label>
+        <textarea
+          name="emergency_instructions"
+          rows={3}
+          defaultValue={kb.emergency_instructions}
+          placeholder="What a tenant should do right now in a flood, fire, or lockout — e.g. shut off the main water valve under the kitchen sink; call 911 for fire; after-hours lockouts call (555) 555-0199…"
+          className={input}
+        />
+        <p className="mt-1 text-xs text-navy/45">
+          What a tenant should do right now in a flood, fire, or lockout. Your agent leads with this in an emergency.
+        </p>
+      </div>
+
       <div>
         <label className={label}>Parking policy</label>
         <input name="parking_policy" defaultValue={kb.parking_policy} placeholder="One assigned spot per unit; street parking for guests" className={input} />
+      </div>
+
+      {/* Lease & tenancy policies */}
+      <div className="rounded-2xl border border-navy/10 bg-cream/60 p-5">
+        <p className="mb-3 text-sm font-semibold text-navy">Lease &amp; tenancy policies</p>
+        <div className="space-y-4">
+          <div>
+            <label className={label}>Guest policy</label>
+            <textarea
+              name="guest_policy"
+              rows={2}
+              defaultValue={kb.guest_policy}
+              placeholder="Overnight guests up to 14 nights per quarter; longer stays need written approval…"
+              className={input}
+            />
+          </div>
+          <div>
+            <label className={label}>Lease renewal policy</label>
+            <textarea
+              name="lease_renewal_policy"
+              rows={2}
+              defaultValue={kb.lease_renewal_policy}
+              placeholder="Renewal offers go out 90 days before lease end; rent may adjust to market…"
+              className={input}
+            />
+          </div>
+          <div>
+            <label className={label}>Subletting policy</label>
+            <textarea
+              name="subletting_policy"
+              rows={2}
+              defaultValue={kb.subletting_policy}
+              placeholder="Subletting requires written landlord approval and a screened subtenant…"
+              className={input}
+            />
+          </div>
+          <div>
+            <label className={label}>Break-lease / early termination policy</label>
+            <textarea
+              name="break_lease_policy"
+              rows={2}
+              defaultValue={kb.break_lease_policy}
+              placeholder="Two months' rent as an early-termination fee with 60 days' written notice…"
+              className={input}
+            />
+          </div>
+          <div>
+            <label className={label}>Move-out &amp; deposit return process</label>
+            <textarea
+              name="move_out_process"
+              rows={2}
+              defaultValue={kb.move_out_process}
+              placeholder="Schedule a move-out inspection; deposit returned within 21 days minus documented damages…"
+              className={input}
+            />
+          </div>
+        </div>
       </div>
 
       <div>
