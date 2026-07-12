@@ -9,17 +9,22 @@ import { sendMaintenanceRequestEmail } from "@/lib/notifications";
 import { readTenantSession, clearTenantSessionCookie } from "@/lib/tenantSession";
 import { startVerifiedTenantChat, sendVerifiedTenantChat } from "@/lib/services/chat";
 
-// Internal: the verified email's leases across all properties. Only ever
-// called with a session-verified email (never client input).
-export async function lookupTenant(email) {
-  const e = (email || "").toString().trim().toLowerCase();
+// Escape LIKE metacharacters so an email containing _ or % matches literally.
+const likeEscape = (s) => s.replace(/[\\%_]/g, "\\$&");
+
+// Internal: the verified email's leases across all properties. Reads the
+// verified session directly — never trusts a client-supplied email.
+export async function lookupTenant() {
+  const session = await readTenantSession();
+  if (!session) return { error: "Your session expired — please sign in again." };
+  const e = (session.email || "").toString().trim().toLowerCase();
   const supabase = getSupabase();
   if (!supabase) return { error: "Something went wrong — please try again later." };
 
   const { data, error } = await supabase
     .from("leases")
     .select("id, property_id, tenant_name, unit_number, lease_start, lease_end, properties(name, address)")
-    .ilike("tenant_email", e)
+    .ilike("tenant_email", likeEscape(e))
     .order("lease_end", { ascending: true });
 
   if (error) {
@@ -70,7 +75,7 @@ export async function submitTenantRequest(prevState, formData) {
   const { data: leaseRows } = await supabase
     .from("leases")
     .select("user_id, property_id, properties(name)")
-    .ilike("tenant_email", email)
+    .ilike("tenant_email", likeEscape(email))
     .eq("property_id", propertyId)
     .limit(1);
   const lease = leaseRows?.[0];

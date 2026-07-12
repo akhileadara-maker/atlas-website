@@ -14,7 +14,7 @@ export default async function TenantPage({ searchParams }) {
   const session = await readTenantSession();
   if (!session) redirect("/signin");
 
-  const res = await lookupTenant(session.email);
+  const res = await lookupTenant();
   if (res.error) {
     return (
       <section className="min-h-screen bg-cream pt-32 pb-20">
