@@ -470,7 +470,7 @@ export default function TenantSignIn() {
               name="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              pattern="\d{6}"
+              pattern="\\d{6}"
               maxLength={6}
               required
               placeholder="123456"
