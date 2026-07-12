@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useUser, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { useUser, SignUpButton, UserButton } from "@clerk/nextjs";
 import Logo from "./Logo";
 
 const links = [
@@ -46,9 +46,9 @@ export default function Navbar() {
       </>
     ) : (
       <>
-        <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-          <button className={block ? `${navLink} py-2` : navLink}>Log in</button>
-        </SignInButton>
+        <Link href="/signin" className={block ? `${navLink} py-2` : navLink}>
+          Log in
+        </Link>
         <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
           <button className={block ? `${tealBtn} w-full` : tealBtn}>Start Free Trial</button>
         </SignUpButton>
