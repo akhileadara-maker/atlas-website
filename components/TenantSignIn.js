@@ -31,10 +31,15 @@ export default function TenantSignIn() {
               name="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              pattern="\\d{6}"
+              pattern="[0-9]{6}"
               maxLength={6}
               required
               placeholder="123456"
+              onChange={(e) => {
+                // Keep the value digits-only (the wide letter-spacing is
+                // display-only) so pasted codes like "123 456" validate.
+                e.target.value = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+              }}
               className={`${field} text-center text-2xl tracking-[0.5em]`}
             />
           </div>

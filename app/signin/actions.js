@@ -15,7 +15,7 @@ export async function requestCode(prevState, formData) {
 // Step 2: verify the code; on success mint the session and go to /tenant.
 export async function verifyCode(prevState, formData) {
   const email = (formData.get("email") || "").toString();
-  const code = (formData.get("code") || "").toString();
+  const code = (formData.get("code") || "").toString().replace(/[^0-9]/g, "");
   const res = await verifyTenantCode(email, code);
   if (res.error) return { error: res.error };
 
