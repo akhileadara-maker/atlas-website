@@ -24,14 +24,14 @@ export default function TenantSignIn() {
           it expires in 10 minutes.
         </p>
         <form action={verifyAction} className="mt-4 space-y-4">
-          <input type="hidden" name="email" value={reqState.email} />
+          <input type="hidden" name="email" value={reqState.email} readOnly />
           <div>
             <label className={label}>6-digit code</label>
             <input
               name="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              pattern="\d{6}"
+              pattern="\\d{6}"
               maxLength={6}
               required
               placeholder="123456"
@@ -44,7 +44,7 @@ export default function TenantSignIn() {
           </button>
         </form>
         <form action={requestAction} className="mt-3 text-center">
-          <input type="hidden" name="email" value={reqState.email} />
+          <input type="hidden" name="email" value={reqState.email} readOnly />
           <button type="submit" disabled={requesting} className="text-sm font-medium text-teal hover:text-teal-600">
             {requesting ? "Sending…" : "Resend code"}
           </button>
