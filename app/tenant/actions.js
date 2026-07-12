@@ -1,18 +1,18 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { computeLeaseStatus } from "@/lib/leases";
 import { URGENCY_OPTIONS } from "@/lib/maintenance";
 import { getNotificationEmail } from "@/lib/profiles";
 import { sendMaintenanceRequestEmail } from "@/lib/notifications";
+import { readTenantSession, clearTenantSessionCookie } from "@/lib/tenantSession";
+import { startVerifiedTenantChat, sendVerifiedTenantChat } from "@/lib/services/chat";
 
-const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-
-// Look up a tenant's leases by email (case-insensitive). Public — no auth.
+// Internal: the verified email's leases across all properties. Only ever
+// called with a session-verified email (never client input).
 export async function lookupTenant(email) {
   const e = (email || "").toString().trim().toLowerCase();
-  if (!isEmail(e)) return { error: "Please enter a valid email address." };
-
   const supabase = getSupabase();
   if (!supabase) return { error: "Something went wrong — please try again later." };
 
@@ -41,24 +41,32 @@ export async function lookupTenant(email) {
   return { email: e, leases };
 }
 
-// Submit a maintenance request as a tenant. Re-verifies the email is on a lease
-// at the chosen property (so requests can't be spoofed to arbitrary properties).
+// Signs the tenant out (clears the session cookie).
+export async function signOutTenant() {
+  await clearTenantSessionCookie();
+  redirect("/signin");
+}
+
+// Submit a maintenance request as a VERIFIED tenant. The email comes from the
+// session, never the form; the lease re-check scopes the request.
 export async function submitTenantRequest(prevState, formData) {
-  const email = (formData.get("email") || "").toString().trim().toLowerCase();
+  const session = await readTenantSession();
+  if (!session) return { error: "Your session expired — please sign in again." };
+  const email = session.email;
+
   const propertyId = (formData.get("property_id") || "").toString().trim();
   const title = (formData.get("title") || "").toString().trim();
   const description = (formData.get("description") || "").toString().trim();
   const urgencyInput = (formData.get("urgency") || "").toString().trim();
   const urgency = URGENCY_OPTIONS.includes(urgencyInput) ? urgencyInput : "normal";
 
-  if (!isEmail(email)) return { error: "Invalid email." };
   if (!title) return { error: "Please describe the issue." };
 
   const supabase = getSupabase();
   if (!supabase) return { error: "Something went wrong — please try again later." };
 
-  // Confirm this email has a lease at this property, and grab the landlord
-  // (user_id) plus the property name for the notification email.
+  // Confirm this verified email has a lease at this property, and grab the
+  // landlord (user_id) plus the property name for the notification email.
   const { data: leaseRows } = await supabase
     .from("leases")
     .select("user_id, property_id, properties(name)")
@@ -99,4 +107,17 @@ export async function submitTenantRequest(prevState, formData) {
   }
 
   return { success: true };
+}
+
+// Chat actions for the tenant home — identity from the session only.
+export async function tenantChatStart(propertyId) {
+  const session = await readTenantSession();
+  if (!session) return { error: "Your session expired — please sign in again." };
+  return startVerifiedTenantChat(session.email, propertyId);
+}
+
+export async function tenantChatSend(propertyId, chatId, text) {
+  const session = await readTenantSession();
+  if (!session) return { error: "Your session expired — please sign in again." };
+  return sendVerifiedTenantChat(session.email, propertyId, chatId, text);
 }
