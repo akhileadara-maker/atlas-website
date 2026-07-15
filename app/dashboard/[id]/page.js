@@ -73,16 +73,14 @@ export default async function PropertyDetailPage({ params }) {
           <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-navy/10 pt-6">
             {hasAgent ? (
               <a
-                href={`https://dashboard.retellai.com/agents/${property.retell_agent_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#test-agent"
                 className="rounded-full border border-teal/30 bg-teal/10 px-5 py-2.5 text-sm font-semibold text-teal-600 transition-colors hover:bg-teal/20"
               >
-                Open agent in Retell ↗
+                Test your agent ↓
               </a>
             ) : (
               <span className="rounded-full border border-navy/10 px-5 py-2.5 text-sm font-medium text-navy/40">
-                Agent pending
+                Agent pending — created automatically, refresh in a moment
               </span>
             )}
             <DeletePropertyButton id={property.id} />
@@ -102,7 +100,7 @@ export default async function PropertyDetailPage({ params }) {
             </div>
           </div>
 
-          <div>
+          <div id="test-agent" className="scroll-mt-28">
             <h2 className="text-xl font-bold text-navy">Test your agent</h2>
             <p className="mt-1 text-sm text-navy/55">Chat live with this property&apos;s agent.</p>
             <div className="mt-6">
@@ -120,7 +118,7 @@ export default async function PropertyDetailPage({ params }) {
         </div>
 
         {/* Lease Intelligence */}
-        <div className="mt-8">
+        <div id="leases" className="mt-8 scroll-mt-28">
           <LeaseIntelligence
             propertyId={property.id}
             leases={leases || []}

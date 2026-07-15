@@ -67,15 +67,20 @@ export default async function DashboardPage() {
   }
 
   // Leases + maintenance requests across all properties (tables may not exist yet).
+  // The conversations probe (1 row max) tells the checklist whether the
+  // landlord has actually exchanged a message with an agent.
   let leases = [];
   let requests = [];
+  let hasTestedAgent = false;
   if (supabase) {
-    const [leaseRes, reqRes] = await Promise.all([
+    const [leaseRes, reqRes, convRes] = await Promise.all([
       supabase.from("leases").select("property_id, lease_end").eq("user_id", userId),
       supabase.from("maintenance_requests").select("property_id, status").eq("user_id", userId),
+      supabase.from("conversations").select("id").eq("user_id", userId).limit(1),
     ]);
     leases = leaseRes.data || [];
     requests = reqRes.data || [];
+    hasTestedAgent = (convRes.data || []).length > 0;
   }
 
   const totalUnits = properties.reduce((sum, p) => sum + (p.units || 0), 0);
@@ -105,9 +110,16 @@ export default async function DashboardPage() {
       href: firstPropertyId ? `/dashboard/${firstPropertyId}` : "#properties",
     },
     {
+      // A lease (with a tenant email) is what the test console verifies
+      // against — without one, "Test your agent" dead-ends.
+      label: "Add your first lease",
+      done: leases.length > 0,
+      href: firstPropertyId ? `/dashboard/${firstPropertyId}#leases` : "#properties",
+    },
+    {
       label: "Test your AI agent",
-      done: properties.some((p) => p.retell_agent_id),
-      href: firstPropertyId ? `/dashboard/${firstPropertyId}` : "#properties",
+      done: hasTestedAgent,
+      href: firstPropertyId ? `/dashboard/${firstPropertyId}#test-agent` : "#properties",
     },
     { label: "Choose a plan", done: isActive(sub), href: "/dashboard/billing" },
   ];
@@ -243,14 +255,12 @@ export default async function DashboardPage() {
                     </div>
                     <p className="hidden text-xs text-navy/40 lg:block">Added {fmtDate(p.created_at)}</p>
                     {p.retell_agent_id ? (
-                      <a
-                        href={`https://dashboard.retellai.com/agents/${p.retell_agent_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        href={`/dashboard/${p.id}#test-agent`}
                         className="rounded-full border border-teal/30 bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-600 transition-colors hover:bg-teal/20"
                       >
                         Test Agent
-                      </a>
+                      </Link>
                     ) : (
                       <span className="rounded-full border border-navy/10 px-4 py-2 text-xs font-medium text-navy/40">
                         Agent pending

@@ -35,6 +35,8 @@ export default function ChatWidget({ propertyId, hasAgent }) {
   const [starting, setStarting] = useState(false); // looking up lease + opening chat
   const [error, setError] = useState(null);
   const [noLease, setNoLease] = useState(false);
+  const [tested, setTested] = useState(false); // a real exchange happened → show the share card
+  const [copied, setCopied] = useState(false);
   const endRef = useRef(null);
   const autoStartedRef = useRef(false);
   const storageKey = `atlas_tenant_email_${propertyId}`;
@@ -133,6 +135,17 @@ export default function ChatWidget({ propertyId, hasAgent }) {
       return;
     }
     setMessages((m) => [...m, { role: "agent", text: res.reply }]);
+    setTested(true);
+  }
+
+  async function copySignInLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/signin`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable — the visible URL can be copied by hand */
+    }
   }
 
   // ---- Email gate: ask who they are before chatting ----
@@ -142,12 +155,17 @@ export default function ChatWidget({ propertyId, hasAgent }) {
         <Header />
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
           {starting ? (
-            <p className="text-sm text-navy/50">Looking up your lease…</p>
+            <p className="text-sm text-navy/50">Looking up the lease…</p>
           ) : noLease ? (
             <>
-              <p className="font-semibold text-navy">We couldn&apos;t find a lease for that email.</p>
+              <p className="font-semibold text-navy">No lease matches that email yet.</p>
               <p className="mt-1 text-sm text-navy/55">
-                Please contact your property manager, or try the email on your lease.
+                The agent answers as a specific tenant, so it needs a lease to work from. Add a
+                lease with a tenant email in{" "}
+                <a href="#leases" className="font-semibold text-teal hover:text-teal-600">
+                  Leases
+                </a>{" "}
+                below, then test with that email.
               </p>
               <button
                 onClick={switchEmail}
@@ -158,8 +176,11 @@ export default function ChatWidget({ propertyId, hasAgent }) {
             </>
           ) : (
             <form onSubmit={onEmailSubmit} className="w-full max-w-sm">
-              <p className="font-semibold text-navy">Chat with your property&apos;s assistant</p>
-              <p className="mt-1 text-sm text-navy/55">Enter your email so we can pull up your lease.</p>
+              <p className="font-semibold text-navy">Test the chat your tenants will see</p>
+              <p className="mt-1 text-sm text-navy/55">
+                Enter a tenant email from one of this property&apos;s leases — the agent will answer
+                with that tenant&apos;s lease details.
+              </p>
               <input
                 type="email"
                 required
@@ -185,6 +206,7 @@ export default function ChatWidget({ propertyId, hasAgent }) {
 
   // ---- Chat ----
   return (
+    <div className="space-y-4">
     <div className="flex h-[28rem] flex-col overflow-hidden rounded-2xl border border-navy/10 bg-cream">
       <Header email={email} onSwitch={switchEmail} />
 
@@ -235,6 +257,29 @@ export default function ChatWidget({ propertyId, hasAgent }) {
           Send
         </button>
       </form>
+    </div>
+
+    {/* Share card — appears once the landlord has had a real exchange */}
+    {tested && (
+      <div className="rounded-2xl border border-teal/25 bg-teal/5 p-5">
+        <p className="font-serif text-lg font-bold text-navy">Working? Share it with your tenants.</p>
+        <p className="mt-1 text-sm text-navy/60">
+          Tenants sign in with the email on their lease — they get this same chat, plus their
+          lease details and a maintenance request form.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <code className="rounded-lg bg-white px-3 py-1.5 text-sm text-navy">
+            {typeof window !== "undefined" ? `${window.location.origin}/signin` : "/signin"}
+          </code>
+          <button
+            onClick={copySignInLink}
+            className="rounded-full bg-teal px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-teal-600"
+          >
+            {copied ? "Copied ✓" : "Copy link"}
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
