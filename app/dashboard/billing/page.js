@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import Container from "@/components/Container";
 import SubscribeButton from "@/components/SubscribeButton";
-import { PLANS, PLAN_ORDER } from "@/lib/plans";
+import { PLAN_ORDER, PLANS, planByKey, planForUnits } from "@/lib/plans";
 import { getSubscription, getUnitCount, isActive } from "@/lib/subscription";
 import { isStripeConfigured } from "@/lib/stripe";
 
@@ -25,7 +25,11 @@ export default async function BillingPage({ searchParams }) {
   const [units, sub] = await Promise.all([getUnitCount(userId), getSubscription(userId)]);
   const billedUnits = Math.max(1, units);
   const active = isActive(sub);
-  const activePlan = active && sub?.plan ? PLANS[sub.plan] : null;
+  const activePlan = active && sub?.plan ? planByKey(sub.plan) : null;
+  // The tier the unit count puts them in — determined, not chosen.
+  const tier = planForUnits(units);
+  const monthly = billedUnits * tier.unitPrice;
+  const onCurrentTier = activePlan?.key === tier.key;
   const configured = isStripeConfigured();
 
   return (
@@ -95,48 +99,77 @@ export default async function BillingPage({ searchParams }) {
           )}
         </div>
 
-        {/* Plan options */}
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          {PLAN_ORDER.map((key) => {
-            const plan = PLANS[key];
-            const isCurrent = activePlan?.key === key;
-            const monthly = billedUnits * plan.unitPrice;
-            return (
-              <div
-                key={key}
-                className={`flex flex-col rounded-3xl p-7 transition-all ${
-                  isCurrent ? "bg-navy text-cream ring-2 ring-teal" : "border border-navy/10 bg-white"
-                }`}
-              >
-                <h3 className={`text-sm font-semibold uppercase tracking-wider ${isCurrent ? "text-gold" : "text-teal"}`}>
-                  {plan.name}
-                </h3>
-                <p className="mt-3 font-serif text-4xl font-bold">
-                  ${plan.unitPrice}
-                  <span className={`text-base font-medium ${isCurrent ? "text-bodygray/60" : "text-navy/45"}`}>
-                    /unit/mo
-                  </span>
-                </p>
-                <p className={`mt-2 text-sm ${isCurrent ? "text-bodygray/75" : "text-navy/60"}`}>{plan.tagline}</p>
-                <p className={`mt-4 text-sm ${isCurrent ? "text-bodygray/85" : "text-navy/70"}`}>
-                  Your {billedUnits} unit{billedUnits === 1 ? "" : "s"} ={" "}
-                  <span className={`font-bold ${isCurrent ? "text-cream" : "text-navy"}`}>${monthly}/mo</span>
-                </p>
-                <div className="mt-auto pt-6">
-                  <SubscribeButton
-                    planKey={key}
-                    label={isCurrent ? "Current plan" : activePlan ? "Switch to this plan" : "Subscribe"}
-                    disabled={isCurrent || !configured}
-                    className={`inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition-all disabled:opacity-50 ${
-                      isCurrent
-                        ? "bg-cream/15 text-cream"
-                        : "bg-teal text-white shadow-lg shadow-teal/25 hover:-translate-y-0.5 hover:bg-teal-600"
-                    }`}
-                  />
-                </div>
+        {/* Your tier — determined by unit count, one action */}
+        <div className="mt-8 rounded-3xl bg-navy p-7 text-cream ring-2 ring-teal">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gold">
+                Your tier · {tier.name}
+              </h3>
+              <p className="mt-3 font-serif text-4xl font-bold">
+                ${tier.unitPrice}
+                <span className="text-base font-medium text-bodygray/60">/unit/mo</span>
+              </p>
+              <p className="mt-2 text-sm text-bodygray/75">
+                Every plan includes all of Atlas — Tenant AI, Lease Intelligence, and Dispatch.
+                Your rate comes from your portfolio size ({tier.range}).
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-serif text-4xl font-bold text-teal">
+                ${monthly}
+                <span className="text-base font-medium text-bodygray/60">/mo</span>
+              </p>
+              <p className="mt-1 text-sm text-bodygray/60">
+                {billedUnits} unit{billedUnits === 1 ? "" : "s"} × ${tier.unitPrice}
+              </p>
+              <div className="mt-4">
+                <SubscribeButton
+                  planKey={tier.key}
+                  label={
+                    onCurrentTier
+                      ? "Current plan"
+                      : activePlan
+                        ? `Switch to ${tier.name} — $${monthly}/mo`
+                        : `Subscribe — $${monthly}/mo`
+                  }
+                  disabled={onCurrentTier || !configured}
+                  className="inline-flex items-center justify-center rounded-full bg-teal px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-teal/25 transition-all hover:-translate-y-0.5 hover:bg-teal-600 disabled:opacity-50"
+                />
               </div>
-            );
-          })}
+            </div>
+          </div>
+        </div>
+
+        {/* The full ladder, for context — informational, no buttons */}
+        <div className="mt-6 rounded-3xl border border-navy/10 bg-white p-7">
+          <h2 className="text-lg font-bold text-navy">How pricing scales</h2>
+          <p className="mt-1 text-sm text-navy/55">
+            Add units and your rate drops automatically at the next tier.
+          </p>
+          <ul className="mt-4 divide-y divide-navy/10">
+            {PLAN_ORDER.map((key) => {
+              const p = PLANS[key];
+              const isYou = p.key === tier.key;
+              return (
+                <li key={key} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`font-semibold ${isYou ? "text-teal-600" : "text-navy"}`}>{p.name}</span>
+                    <span className="text-sm text-navy/50">{p.range}</span>
+                    {isYou && (
+                      <span className="rounded-full bg-teal/12 px-2.5 py-0.5 text-xs font-semibold text-teal-600">
+                        You&apos;re here
+                      </span>
+                    )}
+                  </div>
+                  <span className={`font-serif text-lg font-bold ${isYou ? "text-teal" : "text-navy/70"}`}>
+                    ${p.unitPrice}
+                    <span className="text-xs font-medium text-navy/40">/unit/mo</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </Container>
     </section>

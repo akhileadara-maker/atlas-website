@@ -6,7 +6,7 @@ import AddProperty from "@/components/AddProperty";
 import { getSupabase } from "@/lib/supabase";
 import { saveNotificationEmail } from "@/lib/profiles";
 import { getSubscription, isActive } from "@/lib/subscription";
-import { PLANS } from "@/lib/plans";
+import { planByKey } from "@/lib/plans";
 import { DocumentIcon, WrenchIcon, FileWarningIcon, KeyIcon } from "@/components/icons";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { computeLeaseStatus } from "@/lib/leases";
@@ -97,7 +97,7 @@ export default async function DashboardPage() {
   }
 
   const sub = await getSubscription(userId);
-  const activePlan = isActive(sub) && sub?.plan ? PLANS[sub.plan] : null;
+  const activePlan = isActive(sub) && sub?.plan ? planByKey(sub.plan) : null;
 
   // Onboarding checklist steps (the component hides itself once all are done).
   const firstPropertyId = properties[0]?.id;

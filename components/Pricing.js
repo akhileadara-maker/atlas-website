@@ -5,49 +5,42 @@ import TrialSignUpButton from "./TrialSignUpButton";
 import SectionHeading from "./SectionHeading";
 import { CheckIcon } from "./icons";
 
+// Volume tiers: every plan is the FULL product — the rate simply drops as the
+// portfolio grows. Keep in step with lib/plans.js.
 const tiers = [
   {
-    name: "Dispatch",
-    price: "$6",
-    unit: "/ unit / mo",
-    tagline: "Automated maintenance, end to end.",
-    featured: false,
-    features: [
-      "Maintenance request intake",
-      "AI urgency triage",
-      "Automatic vendor dispatch",
-      "Tenant status updates",
-      "Completion tracking",
-    ],
-  },
-  {
-    name: "Lease Intelligence",
-    price: "$10",
-    unit: "/ unit / mo",
-    tagline: "Never miss a renewal or a clause again.",
-    featured: true,
-    features: [
-      "Everything in Dispatch",
-      "Every lease ingested & searchable",
-      "Renewal & escalation tracking",
-      "90-day deadline alerts",
-      "Portfolio dashboards (Power BI)",
-    ],
-  },
-  {
-    name: "Full Platform",
+    name: "Starter",
+    range: "1–49 units",
     price: "$15",
     unit: "/ unit / mo",
-    tagline: "Tenant AI + everything Atlas can do.",
+    tagline: "Everything Atlas does, from your first unit.",
     featured: false,
-    features: [
-      "Everything in Lease Intelligence",
-      "24/7 Tenant AI — voice & chat",
-      "Any-language support",
-      "SSO & role-based access",
-      "Priority support & SLAs",
-    ],
   },
+  {
+    name: "Growth",
+    range: "50–300 units",
+    price: "$10",
+    unit: "/ unit / mo",
+    tagline: "Your rate drops automatically as you grow.",
+    featured: true,
+  },
+  {
+    name: "Portfolio",
+    range: "300+ units",
+    price: "$6",
+    unit: "/ unit / mo",
+    tagline: "Our best rate for large portfolios.",
+    featured: false,
+  },
+];
+
+// Every tier includes the whole platform — one list, shown on every card.
+const includedEverywhere = [
+  "24/7 Tenant AI — chat, any language",
+  "Lease tracking & 90-day renewal alerts",
+  "Maintenance intake & dispatch",
+  "Verified tenant portal",
+  "Email + push notifications",
 ];
 
 export default function Pricing({ showHeading = true }) {
@@ -57,8 +50,8 @@ export default function Pricing({ showHeading = true }) {
         {showHeading && (
           <SectionHeading
             eyebrow="How we make money"
-            title="Simple, per-unit pricing."
-            subtitle="Start free. Pay only for what you manage. The smaller you are, the better the value."
+            title="One product. Volume pricing."
+            subtitle="Every plan includes all of Atlas. Your rate is set by your portfolio size — and drops automatically as you grow."
           />
         )}
 
@@ -84,6 +77,9 @@ export default function Pricing({ showHeading = true }) {
                 >
                   {tier.name}
                 </h3>
+                <p className={`mt-1 text-sm font-semibold ${tier.featured ? "text-bodygray/80" : "text-navy/55"}`}>
+                  {tier.range}
+                </p>
                 <p className="mt-4 font-serif text-5xl font-bold">
                   {tier.price}
                   <span
@@ -99,7 +95,7 @@ export default function Pricing({ showHeading = true }) {
                 </p>
 
                 <ul className="mt-7 flex-1 space-y-3.5">
-                  {tier.features.map((feat) => (
+                  {includedEverywhere.map((feat) => (
                     <li key={feat} className="flex items-start gap-3 text-sm">
                       <span
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
@@ -129,7 +125,7 @@ export default function Pricing({ showHeading = true }) {
 
         <Reveal delay={150}>
           <p className="mt-10 text-center text-sm text-navy/50">
-            All plans include a free 30-day trial. No credit card required. Cancel anytime.
+            Every plan is the full product — free 30-day trial, no credit card, cancel anytime.
           </p>
         </Reveal>
       </Container>
