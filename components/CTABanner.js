@@ -1,6 +1,7 @@
 import Container from "./Container";
 import Reveal from "./Reveal";
 import Button from "./Button";
+import TrialSignUpButton from "./TrialSignUpButton";
 import { ArrowRightIcon } from "./icons";
 
 export default function CTABanner() {
@@ -22,10 +23,10 @@ export default function CTABanner() {
                 no credit card.
               </p>
               <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
-                <Button href="/demo#trial" variant="gold" size="lg">
+                <TrialSignUpButton variant="gold" size="lg">
                   Start Free Trial
                   <ArrowRightIcon className="h-5 w-5" />
-                </Button>
+                </TrialSignUpButton>
                 <Button href="/demo" variant="ghostLight" size="lg">
                   Watch the Demo
                 </Button>

@@ -2,13 +2,16 @@
 
 import { useActionState } from "react";
 import Button from "./Button";
+import TrialSignUpButton from "./TrialSignUpButton";
 import { CheckIcon } from "./icons";
 import { joinWaitlist } from "@/app/demo/actions";
 
 const field =
   "w-full flex-1 rounded-full border border-navy/20 bg-white px-5 py-3.5 text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-teal";
 
-// Trial / waitlist sign-up. Saves name + email to the Supabase `waitlist` table.
+// Guided-demo request (waitlist). Saves name + email to the Supabase
+// `waitlist` table. This is NOT account creation — the trial CTAs open Clerk
+// sign-up directly (see TrialSignUpButton).
 export default function TrialForm() {
   const [state, formAction, pending] = useActionState(joinWaitlist, {});
 
@@ -18,10 +21,16 @@ export default function TrialForm() {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-teal text-white">
           <CheckIcon className="h-6 w-6" />
         </span>
-        <p className="font-serif text-xl font-bold text-navy">You&apos;re on the list!</p>
+        <p className="font-serif text-xl font-bold text-navy">Request received!</p>
         <p className="text-navy/60">
-          Thanks for signing up — we&apos;ll email you to set up your free 30-day trial.
+          We&apos;ll be in touch to walk you through Atlas. Can&apos;t wait? Start your free
+          trial now — no credit card needed.
         </p>
+        <div className="mt-2">
+          <TrialSignUpButton variant="teal" size="md">
+            Start Free Trial
+          </TrialSignUpButton>
+        </div>
       </div>
     );
   }
@@ -41,12 +50,13 @@ export default function TrialForm() {
       </div>
       <div className="mt-3">
         <Button type="submit" variant="teal" size="lg" disabled={pending} className="w-full disabled:opacity-60 sm:w-auto">
-          {pending ? "Joining…" : "Start Free Trial"}
+          {pending ? "Sending…" : "Request a guided demo"}
         </Button>
       </div>
       {state?.error && <p className="mt-2 text-sm text-coral">{state.error}</p>}
       <p className="mt-3 text-sm text-navy/45">
-        No credit card required · Setup takes an afternoon · Cancel anytime.
+        Prefer to explore on your own? Use <span className="font-semibold">Start Free Trial</span> —
+        no credit card, setup takes an afternoon.
       </p>
     </form>
   );

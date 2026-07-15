@@ -94,7 +94,7 @@ export default function DemoPage() {
         </Container>
       </section>
 
-      {/* Trial signup */}
+      {/* Guided demo request (waitlist) */}
       <section id="trial" className="scroll-mt-24 py-24 lg:py-32">
         <Container className="max-w-2xl text-center">
           <Reveal>
@@ -102,10 +102,11 @@ export default function DemoPage() {
               <MicIcon className="h-8 w-8" />
             </span>
             <h2 className="mt-6 text-3xl font-bold text-navy sm:text-4xl">
-              Start your free 30-day trial.
+              Get a guided demo.
             </h2>
             <p className="mt-4 text-lg text-navy/60">
-              Speak to Atlas. It answers back. Real product — not a video.
+              Leave your details and we&apos;ll walk you through Atlas on a real property — your
+              questions, live answers.
             </p>
             <div className="mt-9">
               <TrialForm />

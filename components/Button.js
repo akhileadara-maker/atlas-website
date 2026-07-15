@@ -2,7 +2,8 @@ import Link from "next/link";
 
 // Polymorphic button: renders a Next <Link> when `href` is given, otherwise a <button>.
 // Variants: teal (filled), ghost (outline), gold, light (for dark backgrounds).
-const variants = {
+// The style maps are exported so TrialSignUpButton renders identically.
+export const variants = {
   teal: "bg-teal text-white hover:bg-teal-600 shadow-lg shadow-teal/25 hover:shadow-teal/40",
   ghost: "bg-transparent text-navy border border-navy/20 hover:border-teal hover:text-teal",
   ghostLight: "bg-transparent text-cream border border-cream/30 hover:border-cream hover:bg-cream/10",
@@ -10,7 +11,7 @@ const variants = {
   light: "bg-cream text-navy hover:bg-white shadow-lg",
 };
 
-const sizes = {
+export const sizes = {
   md: "px-5 py-2.5 text-sm",
   lg: "px-7 py-3.5 text-base",
 };

@@ -1,6 +1,7 @@
 import Container from "./Container";
 import Reveal from "./Reveal";
 import Button from "./Button";
+import TrialSignUpButton from "./TrialSignUpButton";
 import SectionHeading from "./SectionHeading";
 import { CheckIcon } from "./icons";
 
@@ -114,14 +115,13 @@ export default function Pricing({ showHeading = true }) {
                   ))}
                 </ul>
 
-                <Button
-                  href="/demo#trial"
+                <TrialSignUpButton
                   variant={tier.featured ? "teal" : "ghost"}
                   size="lg"
                   className="mt-8 w-full"
                 >
                   Start Free Trial
-                </Button>
+                </TrialSignUpButton>
               </div>
             </Reveal>
           ))}

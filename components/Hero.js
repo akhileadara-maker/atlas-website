@@ -1,5 +1,6 @@
 import Container from "./Container";
 import Button from "./Button";
+import TrialSignUpButton from "./TrialSignUpButton";
 import Reveal from "./Reveal";
 import ChatMockup from "./ChatMockup";
 import { ArrowRightIcon, PlayIcon } from "./icons";
@@ -41,10 +42,10 @@ export default function Hero() {
 
             <Reveal delay={240}>
               <div className="mt-9 flex flex-wrap items-center gap-4">
-                <Button href="/demo#trial" variant="teal" size="lg">
+                <TrialSignUpButton variant="teal" size="lg">
                   Start Free Trial
                   <ArrowRightIcon className="h-5 w-5" />
-                </Button>
+                </TrialSignUpButton>
                 <Button href="/demo" variant="ghost" size="lg">
                   <PlayIcon className="h-4 w-4" />
                   Watch Demo
