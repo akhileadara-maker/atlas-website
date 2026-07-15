@@ -138,11 +138,6 @@ export default async function BillingPage({ searchParams }) {
             );
           })}
         </div>
-
-        <p className="mt-6 text-center text-xs text-navy/40">
-          Test mode — use Stripe&apos;s test card <span className="font-mono">4242 4242 4242 4242</span>, any future
-          date &amp; CVC.
-        </p>
       </Container>
     </section>
   );
