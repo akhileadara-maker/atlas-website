@@ -95,3 +95,15 @@ Replace the unverified email-lookup tenant experience with a verified one: a uni
 ## Out of scope (later)
 
 The grouped per-tenant inbox UI for landlords (this build only records `tenant_email` on the rows); server-side session revocation store; SMS codes; rate-limiting beyond the attempt cap (e.g. per-IP request throttling — revisit before heavy marketing); tenant password accounts; the mobile app's tenant experience (mobile remains the landlord app; parked `phase9-devbuild` unaffected); Resend domain verification (separate task — the flow works fully once done).
+
+---
+
+## Post-ship addendum (2026-07-14) — the shipped system supersedes three details above
+
+Shipped to production 2026-07-14 at `b40d725` (merge) and hardened the same day at `cf41b5c`. Where this addendum and the body disagree, the addendum is current. Execution record: `.superpowers/sdd/progress.md` (TENANT SIGN-IN, SECURITY REVIEW + HARDENING sections).
+
+1. **OTP input pattern.** The plan's JSX `pattern="\d{6}"` was a plan bug (fixed once during review at `de7ad28`, over-escaped, truly fixed post-ship at `48d3ffb`). Shipped form: `pattern="[0-9]{6}"` with digit-only sanitization on input **and** in the server action.
+2. **OTP verify is hardened beyond this design** (migration `0014`, commit `7da51cf`): per-email 60s cooldown + per-IP 20/hour cap on code requests (`tenant_otp_ips` table), opportunistic expired-row cleanup, atomic DB-side attempt increment **before** the hash compare (`increment_otp_attempts()`), and `crypto.timingSafeEqual` for the compare. The design's read-modify-write attempts counter and plain `!==` compare are superseded.
+3. **Chat sessions are server-bound** (migration `0014`, commit `cf41b5c`): every chat start records `chat_sessions(chat_id, property_id, user_id, tenant_email)`; every send verifies the caller against that row (tenant email + property for tenant chats; landlord + property for console chats) and fails closed. Conversation logging sources property/owner from the binding row. Messages are capped at 2000 chars. The design's "chatId is an opaque bearer token" posture is superseded.
+
+Still true and unchanged: identity from the verified session only; anti-enumeration responses; priming never shown/logged; `conversations.tenant_email` set only on verified tenant chats (console rows stay null); RLS posture. Known deferrals: stateless cookie has no server-side revoke (L1 — revisit before real tenant churn); dev-only OTP console log stays until the Resend domain is verified (NODE_ENV-gated, prod-inert).
