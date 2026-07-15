@@ -3,7 +3,7 @@
 **Date:** 2026-07-12
 **Status:** Approved by developer (all seven sections; plus: tenant chats logged WITH tenant identity on the row; /signin front door with navbar link)
 **Repo:** `Atlas_Website` (LIVE PRODUCTION — deploys to Vercel on push to `main`). **Rule-1** change: feature branch `tenant-signin`; `npm run build` + curl checks + developer browser smoke; merge + push (deploy) only after the smoke passes. Deploy-time developer steps: run migration 0013 in the Supabase SQL editor; set `TENANT_SESSION_SECRET` in Vercel (and `.env.local`).
-**Baseline:** `Atlas_Website` `main` at `46db3df`.
+**Baseline:** `Atlas_Website` `main` at `87e1f57`.
 
 ## Goal
 
@@ -100,10 +100,10 @@ The grouped per-tenant inbox UI for landlords (this build only records `tenant_e
 
 ## Post-ship addendum (2026-07-14) — the shipped system supersedes three details above
 
-Shipped to production 2026-07-14 at `b40d725` (merge) and hardened the same day at `cf41b5c`. Where this addendum and the body disagree, the addendum is current. Execution record: `.superpowers/sdd/progress.md` (TENANT SIGN-IN, SECURITY REVIEW + HARDENING sections).
+Shipped to production 2026-07-14 at `6b8237d` (merge) and hardened the same day at `c4f3f27`. Where this addendum and the body disagree, the addendum is current. Execution record: `.superpowers/sdd/progress.md` (TENANT SIGN-IN, SECURITY REVIEW + HARDENING sections).
 
-1. **OTP input pattern.** The plan's JSX `pattern="\d{6}"` was a plan bug (fixed once during review at `de7ad28`, over-escaped, truly fixed post-ship at `48d3ffb`). Shipped form: `pattern="[0-9]{6}"` with digit-only sanitization on input **and** in the server action.
-2. **OTP verify is hardened beyond this design** (migration `0014`, commit `7da51cf`): per-email 60s cooldown + per-IP 20/hour cap on code requests (`tenant_otp_ips` table), opportunistic expired-row cleanup, atomic DB-side attempt increment **before** the hash compare (`increment_otp_attempts()`), and `crypto.timingSafeEqual` for the compare. The design's read-modify-write attempts counter and plain `!==` compare are superseded.
-3. **Chat sessions are server-bound** (migration `0014`, commit `cf41b5c`): every chat start records `chat_sessions(chat_id, property_id, user_id, tenant_email)`; every send verifies the caller against that row (tenant email + property for tenant chats; landlord + property for console chats) and fails closed. Conversation logging sources property/owner from the binding row. Messages are capped at 2000 chars. The design's "chatId is an opaque bearer token" posture is superseded.
+1. **OTP input pattern.** The plan's JSX `pattern="\d{6}"` was a plan bug (fixed once during review at `f4d7831`, over-escaped, truly fixed post-ship at `77a94e6`). Shipped form: `pattern="[0-9]{6}"` with digit-only sanitization on input **and** in the server action.
+2. **OTP verify is hardened beyond this design** (migration `0014`, commit `86d3061`): per-email 60s cooldown + per-IP 20/hour cap on code requests (`tenant_otp_ips` table), opportunistic expired-row cleanup, atomic DB-side attempt increment **before** the hash compare (`increment_otp_attempts()`), and `crypto.timingSafeEqual` for the compare. The design's read-modify-write attempts counter and plain `!==` compare are superseded.
+3. **Chat sessions are server-bound** (migration `0014`, commit `c4f3f27`): every chat start records `chat_sessions(chat_id, property_id, user_id, tenant_email)`; every send verifies the caller against that row (tenant email + property for tenant chats; landlord + property for console chats) and fails closed. Conversation logging sources property/owner from the binding row. Messages are capped at 2000 chars. The design's "chatId is an opaque bearer token" posture is superseded.
 
 Still true and unchanged: identity from the verified session only; anti-enumeration responses; priming never shown/logged; `conversations.tenant_email` set only on verified tenant chats (console rows stay null); RLS posture. Known deferrals: stateless cookie has no server-side revoke (L1 — revisit before real tenant churn); dev-only OTP console log stays until the Resend domain is verified (NODE_ENV-gated, prod-inert).

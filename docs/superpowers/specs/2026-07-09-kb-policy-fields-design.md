@@ -3,7 +3,7 @@
 **Date:** 2026-07-09
 **Status:** Approved by developer (six new KB fields; system-prompt partial-escalation rewrite; the merge fix to prevent cross-surface field wipes — all approved)
 **Repo:** `Atlas_Website` (LIVE PRODUCTION — deploys to Vercel on push to `main`). This is a **Rule-1** change: feature branch `kb-policy-fields`; `npm run build` + curl + developer browser smoke; merge + push (deploy) only after the smoke passes.
-**Baseline:** `Atlas_Website` `main` at `9cf5647`.
+**Baseline:** `Atlas_Website` `main` at `a906296`.
 
 ## Goal
 
